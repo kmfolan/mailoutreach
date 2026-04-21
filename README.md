@@ -36,6 +36,7 @@ If `AUTH_PASSWORD` is not set locally, the server will generate a temporary pass
 
 Double-click or run:
 
+- `E:\AKELA\codex\forgeai-gym-coach\start-outbound.cmd`
 - `E:\AKELA\codex\forgeai-gym-coach\start-outbound-forge.cmd`
 
 Before the first run:
@@ -44,6 +45,10 @@ Before the first run:
 2. set your own username, password, and session secret
 
 Then open `http://127.0.0.1:4020`.
+
+To stop the local server quickly:
+
+- `E:\AKELA\codex\forgeai-gym-coach\stop-outbound.cmd`
 
 For local use, keep:
 

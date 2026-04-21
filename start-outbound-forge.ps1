@@ -1,12 +1,9 @@
-param(
-  [string]$Username = "admin",
-  [string]$Password = "change-me-now",
-  [string]$SessionSecret = "replace-with-a-long-random-secret"
-)
+param()
 
 $projectRoot = "E:\AKELA\codex\forgeai-gym-coach"
-$nodePath = "E:\AKELA\codex\forgeai-gym-coach\tools\node-v22.20.0-win-x64-full\node-v22.20.0-win-x64\node.exe"
+$nodePath = Join-Path $projectRoot "tools\node-v22.20.0-win-x64\node.exe"
 $serverPath = Join-Path $projectRoot "server\src\index.js"
+$envPath = Join-Path $projectRoot ".env"
 
 if (-not (Test-Path $nodePath)) {
   Write-Error "Node runtime not found at $nodePath"
@@ -18,14 +15,14 @@ if (-not (Test-Path $serverPath)) {
   exit 1
 }
 
-$env:AUTH_USERNAME = $Username
-$env:AUTH_PASSWORD = $Password
-$env:AUTH_SESSION_SECRET = $SessionSecret
+if (-not (Test-Path $envPath)) {
+  Write-Error "Missing .env file at $envPath. Copy .env.example to .env and fill in your values first."
+  exit 1
+}
 
 Write-Host ""
 Write-Host "Starting Outbound Forge..." -ForegroundColor Cyan
-Write-Host "Username: $Username" -ForegroundColor Green
-Write-Host "Password: $Password" -ForegroundColor Yellow
+Write-Host "Using .env at: $envPath" -ForegroundColor Green
 Write-Host "Open: http://127.0.0.1:4020" -ForegroundColor Green
 Write-Host ""
 

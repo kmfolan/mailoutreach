@@ -17,6 +17,7 @@ Outbound Forge is now a protected local MVP for planning cold email infrastructu
 - desktop/browser launcher flow
 - planner draft persistence in the browser
 - copy/export support for generated plan summaries
+- local launcher scripts now point at the current bundled Node runtime
 
 ## Main Remaining Work
 

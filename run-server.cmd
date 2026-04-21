@@ -2,7 +2,7 @@
 setlocal
 
 set "PROJECT_ROOT=E:\AKELA\codex\forgeai-gym-coach"
-set "NODE_PATH=%PROJECT_ROOT%\tools\node-v22.20.0-win-x64-full\node-v22.20.0-win-x64\node.exe"
+set "NODE_PATH=%PROJECT_ROOT%\tools\node-v22.20.0-win-x64\node.exe"
 set "SERVER_PATH=%PROJECT_ROOT%\server\src\index.js"
 set "LOG_PATH=%PROJECT_ROOT%\server.log"
 
