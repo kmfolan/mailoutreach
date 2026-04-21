@@ -1,0 +1,10 @@
+{
+  "name": "Outbound Forge",
+  "short_name": "OutboundForge",
+  "description": "Outbound infrastructure planner MVP with a live setup request flow and generated mailbox plans.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#09101a",
+  "theme_color": "#0f1324",
+  "orientation": "portrait-primary"
+}

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outbound Forge | Outbound Infrastructure Planner</title>
+  <meta
+    name="description"
+    content="Outbound Forge is a functional MVP for planning domains, mailboxes, and warmup schedules for cold email infrastructure."
+  >
+  <meta name="theme-color" content="#0f1324">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Outbound Forge">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="Outbound Forge home">
+        <span class="brand-badge">OF</span>
+        <span>
+          <strong>Outbound Forge</strong>
+          <small>Infrastructure planner MVP</small>
+        </span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="#planner">Planner</a>
+        <a href="#workspace">Workspace</a>
+        <a href="#activity">Activity</a>
+      </nav>
+
+      <div class="topbar-actions">
+        <a class="button button-ghost" href="#planner">Build a plan</a>
+        <button class="button button-ghost" type="button" id="logout-button">Sign out</button>
+      </div>
+    </header>
+
+    <main id="home">
+      <section class="hero-layout">
+        <div class="hero-copy">
+          <p class="eyebrow">Working MVP, not a mockup</p>
+          <h1>Plan your outbound infrastructure before you start burning inboxes.</h1>
+          <p class="hero-text">
+            Outbound Forge gives you a real setup plan: recommended domains, mailbox count, sending capacity,
+            monthly cost estimate, warmup ramp, and a concrete execution checklist. Submit the form and the workspace updates from the server.
+          </p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#planner">Create setup plan</a>
+            <a class="button button-ghost" href="#workspace">View live workspace</a>
+          </div>
+
+          <div class="hero-stats" id="summary-cards">
+            <article class="stat-card">
+              <span class="label">Active plans</span>
+              <strong>0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="label">Latest company</span>
+              <strong>Loading</strong>
+            </article>
+            <article class="stat-card">
+              <span class="label">Daily capacity</span>
+              <strong>0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="label">Portfolio infra cost</span>
+              <strong>$0</strong>
+            </article>
+          </div>
+        </div>
+
+        <aside class="hero-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">What this actually does</p>
+            <h2>From intake to rollout checklist in one pass.</h2>
+          </div>
+          <div class="mini-grid">
+            <article>
+              <span class="label">Generates</span>
+              <strong>Domain and mailbox plan</strong>
+            </article>
+            <article>
+              <span class="label">Calculates</span>
+              <strong>Capacity and estimated cost</strong>
+            </article>
+            <article>
+              <span class="label">Returns</span>
+              <strong>Warmup ramp and checklist</strong>
+            </article>
+            <article>
+              <span class="label">Stores</span>
+              <strong>Recent requests in memory</strong>
+            </article>
+          </div>
+        </aside>
+      </section>
+
+      <section class="planner-layout" id="planner">
+        <article class="panel planner-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Planner</p>
+            <h2>Submit an outbound setup request.</h2>
+            <p>Complete the inputs below and the server will generate an infrastructure recommendation immediately.</p>
+          </div>
+
+          <form id="setup-form" class="setup-form">
+            <div class="form-grid">
+              <label>
+                Owner name
+                <input name="ownerName" type="text" value="Jordan Lee" required>
+              </label>
+              <label>
+                Company name
+                <input name="companyName" type="text" value="Signal Peak Labs" required>
+              </label>
+              <label>
+                Work email
+                <input name="email" type="email" value="jordan@signalpeaklabs.com" required>
+              </label>
+              <label>
+                Team type
+                <select name="teamType" required>
+                  <option>Lead gen agency</option>
+                  <option>SaaS sales team</option>
+                  <option>Founder-led outbound</option>
+                  <option>Recruiting team</option>
+                </select>
+              </label>
+              <label>
+                Sending platform
+                <select name="platform" required>
+                  <option>Google Workspace</option>
+                  <option>Microsoft 365</option>
+                </select>
+              </label>
+              <label>
+                Contacts per month
+                <input name="contactsPerMonth" type="number" min="1000" step="1000" value="30000" required>
+              </label>
+              <label>
+                Sending days per month
+                <input name="sendingDays" type="number" min="10" max="31" value="22" required>
+              </label>
+              <label>
+                Emails per mailbox per day
+                <input name="dailyPerMailbox" type="number" min="15" max="60" value="35" required>
+              </label>
+              <label>
+                Mailboxes per domain
+                <input name="mailboxesPerDomain" type="number" min="2" max="8" value="4" required>
+              </label>
+              <label class="field-wide">
+                Notes
+                <textarea name="notes" rows="4">Need a stack that can support steady campaign growth without overloading individual inboxes.</textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Generate live plan</button>
+              <p id="form-status" class="status-text">Ready to submit.</p>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel preview-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Generated plan</p>
+            <h2>Latest recommended stack.</h2>
+          </div>
+
+          <div class="results-grid" id="plan-metrics">
+            <article class="metric-card">
+              <span class="label">Domains</span>
+              <strong>0</strong>
+            </article>
+            <article class="metric-card">
+              <span class="label">Mailboxes</span>
+              <strong>0</strong>
+            </article>
+            <article class="metric-card">
+              <span class="label">Daily capacity</span>
+              <strong>0</strong>
+            </article>
+            <article class="metric-card">
+              <span class="label">Infra cost</span>
+              <strong>$0</strong>
+            </article>
+          </div>
+
+          <div class="plan-summary" id="plan-summary">
+            <p>Submit a request to see the calculated infrastructure summary.</p>
+          </div>
+
+          <div class="checklist-block">
+            <h3>Operator recommendations</h3>
+            <ul id="recommendations-list" class="stack-list"></ul>
+          </div>
+
+          <div class="checklist-block">
+            <h3>Execution checklist</h3>
+            <ul id="checklist-list" class="stack-list"></ul>
+          </div>
+        </article>
+      </section>
+
+      <section class="workspace-layout" id="workspace">
+        <article class="panel workspace-main">
+          <div class="panel-heading">
+            <p class="eyebrow">Workspace</p>
+            <h2>Warmup ramp and operating details.</h2>
+          </div>
+
+          <div id="warmup-grid" class="warmup-grid"></div>
+        </article>
+
+        <article class="panel workspace-side" id="activity">
+          <div class="panel-heading">
+            <p class="eyebrow">Recent activity</p>
+            <h2>Saved requests from the server.</h2>
+          </div>
+
+          <div id="recent-requests" class="timeline-list"></div>
+          <div class="divider"></div>
+          <div id="activity-feed" class="timeline-list"></div>
+        </article>
+      </section>
+
+      <section class="history-layout">
+        <article class="panel history-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Plan history</p>
+            <h2>Recently generated infrastructure plans.</h2>
+          </div>
+
+          <div id="plan-history" class="history-list"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
