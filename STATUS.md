@@ -15,6 +15,8 @@ Outbound Forge is now a protected local MVP for planning cold email infrastructu
 - persistent local storage in `server/data/db.json`
 - activity feed, recommendations, and plan history
 - desktop/browser launcher flow
+- planner draft persistence in the browser
+- copy/export support for generated plan summaries
 
 ## Main Remaining Work
 
@@ -29,3 +31,4 @@ Outbound Forge is now a protected local MVP for planning cold email infrastructu
 - current stable local port is `4020`
 - auth is suitable for a protected MVP, not final production identity
 - no real domain, DNS, mailbox, or billing integrations yet
+- some older filenames and deployment artifacts still need naming cleanup

@@ -12,6 +12,8 @@ Outbound Forge is a local MVP for planning cold email infrastructure with a prot
 - daily sending capacity and monthly infrastructure cost estimates
 - recent request and activity history persisted to a local JSON data file
 - plan history shown in the dashboard instead of only the latest result
+- browser draft saving for planner inputs
+- one-click copy/export of the generated plan summary
 
 ## Current Limits
 
@@ -36,12 +38,17 @@ Double-click or run:
 
 - `E:\AKELA\codex\forgeai-gym-coach\start-outbound-forge.cmd`
 
-This starts the local server with default credentials:
+Before the first run:
 
-- username: `kevin@atlasstudios.com`
-- password: `Atlas713971!`
+1. copy `.env.example` to `.env`
+2. set your own username, password, and session secret
 
 Then open `http://127.0.0.1:4020`.
+
+For local use, keep:
+
+- `NODE_ENV=development`
+- `COOKIE_SECURE=false`
 
 ## Run With The Bundled Node Runtime
 
@@ -50,7 +57,7 @@ $env:AUTH_USERNAME='admin'
 $env:AUTH_PASSWORD='replace-this'
 $env:AUTH_SESSION_SECRET='replace-with-a-long-random-secret'
 $env:PORT='4020'
-& 'E:\AKELA\codex\forgeai-gym-coach\tools\node-v22.20.0-win-x64-full\node-v22.20.0-win-x64\node.exe' 'E:\AKELA\codex\forgeai-gym-coach\server\src\index.js'
+& 'E:\AKELA\codex\forgeai-gym-coach\tools\node-v22.20.0-win-x64\node.exe' 'E:\AKELA\codex\forgeai-gym-coach\server\src\index.js'
 ```
 
 Then open `http://127.0.0.1:4020`.

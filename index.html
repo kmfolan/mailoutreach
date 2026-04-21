@@ -170,6 +170,7 @@
 
             <div class="form-actions">
               <button class="button button-primary" type="submit">Generate live plan</button>
+              <button class="button button-ghost" type="button" id="reset-draft-button">Reset draft</button>
               <p id="form-status" class="status-text">Ready to submit.</p>
             </div>
           </form>
@@ -202,6 +203,11 @@
 
           <div class="plan-summary" id="plan-summary">
             <p>Submit a request to see the calculated infrastructure summary.</p>
+          </div>
+
+          <div class="form-actions">
+            <button class="button button-ghost" type="button" id="copy-plan-button">Copy plan summary</button>
+            <p id="copy-status" class="status-text">Nothing copied yet.</p>
           </div>
 
           <div class="checklist-block">

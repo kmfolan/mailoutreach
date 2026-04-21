@@ -14,8 +14,8 @@ Request body:
 
 ```json
 {
-  "username": "kevin@atlasstudios.com",
-  "password": "Atlas713971!"
+  "username": "admin@example.com",
+  "password": "replace-with-a-strong-password"
 }
 ```
 
@@ -48,7 +48,7 @@ Request body:
 {
   "ownerName": "Kevin Atlas",
   "companyName": "Atlas Studios",
-  "email": "kevin@atlasstudios.com",
+  "email": "owner@example.com",
   "teamType": "Founder-led outbound",
   "platform": "Google Workspace",
   "contactsPerMonth": 18000,

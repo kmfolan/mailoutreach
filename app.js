@@ -10,6 +10,12 @@ const recentRequests = document.getElementById("recent-requests");
 const activityFeed = document.getElementById("activity-feed");
 const planHistory = document.getElementById("plan-history");
 const logoutButton = document.getElementById("logout-button");
+const resetDraftButton = document.getElementById("reset-draft-button");
+const copyPlanButton = document.getElementById("copy-plan-button");
+const copyStatus = document.getElementById("copy-status");
+
+const formDraftKey = "outbound-forge-form-draft";
+let latestPlan = null;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
@@ -39,6 +45,52 @@ async function requestJson(url, options) {
   return data;
 }
 
+function getFormPayload() {
+  const formData = new FormData(form);
+  return {
+    ownerName: formData.get("ownerName")?.toString().trim(),
+    companyName: formData.get("companyName")?.toString().trim(),
+    email: formData.get("email")?.toString().trim(),
+    teamType: formData.get("teamType")?.toString().trim(),
+    platform: formData.get("platform")?.toString().trim(),
+    contactsPerMonth: Number(formData.get("contactsPerMonth")),
+    sendingDays: Number(formData.get("sendingDays")),
+    dailyPerMailbox: Number(formData.get("dailyPerMailbox")),
+    mailboxesPerDomain: Number(formData.get("mailboxesPerDomain")),
+    notes: formData.get("notes")?.toString().trim() || ""
+  };
+}
+
+function readDraft() {
+  try {
+    const raw = localStorage.getItem(formDraftKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft() {
+  localStorage.setItem(formDraftKey, JSON.stringify(getFormPayload()));
+}
+
+function restoreDraft() {
+  const draft = readDraft();
+  if (!draft) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(draft)) {
+    const field = form.elements.namedItem(key);
+    if (field && value !== undefined && value !== null) {
+      field.value = String(value);
+    }
+  }
+
+  formStatus.textContent = "Restored saved draft from this browser.";
+  formStatus.className = "status-text info";
+}
+
 function renderSummary(summary) {
   summaryCards.innerHTML = `
     <article class="stat-card">
@@ -61,11 +113,13 @@ function renderSummary(summary) {
 }
 
 function renderPlan(plan) {
+  latestPlan = plan;
+
   if (!plan) {
     planMetrics.innerHTML = "";
     planSummary.innerHTML = "<p>No plan generated yet.</p>";
-    checklistList.innerHTML = "";
-    recommendationsList.innerHTML = "";
+    checklistList.innerHTML = `<li class="empty-state">Execution checklist appears after the first generated plan.</li>`;
+    recommendationsList.innerHTML = `<li class="empty-state">Operator recommendations appear after the first generated plan.</li>`;
     warmupGrid.innerHTML = "";
     return;
   }
@@ -103,15 +157,15 @@ function renderPlan(plan) {
     </p>
   `;
 
-  checklistList.innerHTML = plan.checklist
-    .map(item => `<li>${item}</li>`)
-    .join("");
+  checklistList.innerHTML = (plan.checklist || []).length > 0
+    ? plan.checklist.map(item => `<li>${item}</li>`).join("")
+    : `<li class="empty-state">No checklist was returned.</li>`;
 
-  recommendationsList.innerHTML = (plan.recommendations || [])
-    .map(item => `<li>${item}</li>`)
-    .join("");
+  recommendationsList.innerHTML = (plan.recommendations || []).length > 0
+    ? plan.recommendations.map(item => `<li>${item}</li>`).join("")
+    : `<li class="empty-state">No operator recommendations were returned.</li>`;
 
-  warmupGrid.innerHTML = plan.warmupPlan
+  warmupGrid.innerHTML = (plan.warmupPlan || [])
     .map(item => `
       <article class="warmup-card">
         <span class="label">${item.week}</span>
@@ -124,40 +178,46 @@ function renderPlan(plan) {
 }
 
 function renderRecentRequests(items) {
-  recentRequests.innerHTML = items
-    .map(item => `
-      <article class="timeline-item">
-        <strong>${item.companyName}</strong>
-        <p>${item.ownerName} · ${item.email}</p>
-        <p>${item.status}</p>
-      </article>
-    `)
-    .join("");
+  recentRequests.innerHTML = items.length > 0
+    ? items
+        .map(item => `
+          <article class="timeline-item">
+            <strong>${item.companyName}</strong>
+            <p>${item.ownerName} - ${item.email}</p>
+            <p>${item.status}</p>
+          </article>
+        `)
+        .join("")
+    : `<article class="empty-state">No setup requests saved yet.</article>`;
 }
 
 function renderActivity(items) {
-  activityFeed.innerHTML = items
-    .map(item => `
-      <article class="timeline-item">
-        <strong>${item.title}</strong>
-        <time datetime="${item.createdAt}">${new Date(item.createdAt).toLocaleString()}</time>
-        <p>${item.body}</p>
-      </article>
-    `)
-    .join("");
+  activityFeed.innerHTML = items.length > 0
+    ? items
+        .map(item => `
+          <article class="timeline-item">
+            <strong>${item.title}</strong>
+            <time datetime="${item.createdAt}">${new Date(item.createdAt).toLocaleString()}</time>
+            <p>${item.body}</p>
+          </article>
+        `)
+        .join("")
+    : `<article class="empty-state">No activity yet. Generate a plan to populate this feed.</article>`;
 }
 
 function renderPlanHistory(items) {
-  planHistory.innerHTML = items
-    .map(item => `
-      <article class="history-card">
-        <strong>${item.companyName}</strong>
-        <p>${new Date(item.createdAt).toLocaleString()}</p>
-        <p>${formatNumber(item.recommendedDomains)} domains · ${formatNumber(item.recommendedMailboxes)} mailboxes</p>
-        <p>${formatNumber(item.totalDailyCapacity)} daily capacity · ${formatCurrency(item.estimatedMonthlyInfraCost)} / month</p>
-      </article>
-    `)
-    .join("");
+  planHistory.innerHTML = items.length > 0
+    ? items
+        .map(item => `
+          <article class="history-card">
+            <strong>${item.companyName}</strong>
+            <p>${new Date(item.createdAt).toLocaleString()}</p>
+            <p>${formatNumber(item.recommendedDomains)} domains - ${formatNumber(item.recommendedMailboxes)} mailboxes</p>
+            <p>${formatNumber(item.totalDailyCapacity)} daily capacity - ${formatCurrency(item.estimatedMonthlyInfraCost)} / month</p>
+          </article>
+        `)
+        .join("")
+    : `<article class="empty-state">Plan history will populate after the first generated request.</article>`;
 }
 
 async function loadDashboard() {
@@ -168,22 +228,6 @@ async function loadDashboard() {
   renderRecentRequests(dashboard.recentRequests);
   renderActivity(dashboard.activity);
   renderPlanHistory(dashboard.planHistory || []);
-}
-
-function getFormPayload() {
-  const formData = new FormData(form);
-  return {
-    ownerName: formData.get("ownerName")?.toString().trim(),
-    companyName: formData.get("companyName")?.toString().trim(),
-    email: formData.get("email")?.toString().trim(),
-    teamType: formData.get("teamType")?.toString().trim(),
-    platform: formData.get("platform")?.toString().trim(),
-    contactsPerMonth: Number(formData.get("contactsPerMonth")),
-    sendingDays: Number(formData.get("sendingDays")),
-    dailyPerMailbox: Number(formData.get("dailyPerMailbox")),
-    mailboxesPerDomain: Number(formData.get("mailboxesPerDomain")),
-    notes: formData.get("notes")?.toString().trim() || ""
-  };
 }
 
 async function handleSubmit(event) {
@@ -200,6 +244,7 @@ async function handleSubmit(event) {
       body: JSON.stringify(getFormPayload())
     });
 
+    saveDraft();
     formStatus.textContent = "Plan generated and workspace updated.";
     formStatus.className = "status-text success";
     await loadDashboard();
@@ -207,6 +252,64 @@ async function handleSubmit(event) {
     formStatus.textContent = error.message;
     formStatus.className = "status-text error";
   }
+}
+
+function buildPlanExportText() {
+  if (!latestPlan) {
+    return "";
+  }
+
+  const checklist = (latestPlan.checklist || []).map(item => `- ${item}`).join("\n");
+  const recommendations = (latestPlan.recommendations || []).map(item => `- ${item}`).join("\n");
+  const warmup = (latestPlan.warmupPlan || [])
+    .map(item => `${item.week}: ${formatNumber(item.sendPerMailbox)} per mailbox/day, ${formatNumber(item.totalDailyVolume)} total/day`)
+    .join("\n");
+
+  return [
+    `Outbound Forge Plan for ${latestPlan.companyName}`,
+    "",
+    `Owner: ${latestPlan.ownerName}`,
+    `Platform: ${latestPlan.platform}`,
+    `Recommended domains: ${latestPlan.recommendedDomains}`,
+    `Recommended mailboxes: ${latestPlan.recommendedMailboxes}`,
+    `Daily capacity: ${formatNumber(latestPlan.totalDailyCapacity)}`,
+    `Estimated monthly infra cost: ${formatCurrency(latestPlan.estimatedMonthlyInfraCost)}`,
+    "",
+    "Recommendations:",
+    recommendations || "- None",
+    "",
+    "Checklist:",
+    checklist || "- None",
+    "",
+    "Warmup ramp:",
+    warmup || "- None"
+  ].join("\n");
+}
+
+async function handleCopyPlan() {
+  if (!latestPlan) {
+    copyStatus.textContent = "Generate a plan before copying.";
+    copyStatus.className = "status-text error";
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(buildPlanExportText());
+    copyStatus.textContent = "Plan summary copied to clipboard.";
+    copyStatus.className = "status-text success";
+  } catch {
+    copyStatus.textContent = "Clipboard copy failed in this browser.";
+    copyStatus.className = "status-text error";
+  }
+}
+
+function handleResetDraft() {
+  localStorage.removeItem(formDraftKey);
+  form.reset();
+  copyStatus.textContent = "Nothing copied yet.";
+  copyStatus.className = "status-text";
+  formStatus.textContent = "Draft cleared. Default values restored.";
+  formStatus.className = "status-text info";
 }
 
 async function handleLogout() {
@@ -226,8 +329,12 @@ function registerServiceWorker() {
 }
 
 form.addEventListener("submit", handleSubmit);
+form.addEventListener("input", saveDraft);
 logoutButton.addEventListener("click", handleLogout);
+resetDraftButton.addEventListener("click", handleResetDraft);
+copyPlanButton.addEventListener("click", handleCopyPlan);
 
+restoreDraft();
 loadDashboard().catch(error => {
   formStatus.textContent = `Unable to load dashboard: ${error.message}`;
   formStatus.className = "status-text error";

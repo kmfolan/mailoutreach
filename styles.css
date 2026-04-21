@@ -350,6 +350,10 @@ textarea {
   color: var(--accent);
 }
 
+.status-text.info {
+  color: var(--secondary);
+}
+
 .results-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -405,6 +409,14 @@ textarea {
 .timeline-item {
   display: grid;
   gap: 6px;
+}
+
+.empty-state {
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(152, 182, 255, 0.18);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .timeline-item time {
