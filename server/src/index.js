@@ -22,7 +22,7 @@ const authConfig = {
   username: process.env.AUTH_USERNAME || "admin",
   password: process.env.AUTH_PASSWORD || generatedPassword,
   sessionSecret: process.env.AUTH_SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
-  secureCookies: process.env.NODE_ENV === "production",
+  secureCookies: process.env.COOKIE_SECURE === "true",
   sessionTtlMs: 1000 * 60 * 60 * 8
 };
 

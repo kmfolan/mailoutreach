@@ -26,6 +26,7 @@ Outbound Forge is a local MVP for planning cold email infrastructure with a prot
 - `AUTH_PASSWORD`
 - `AUTH_SESSION_SECRET`
 - `NODE_ENV=production` when deployed behind HTTPS
+- `COOKIE_SECURE=true` only when the app is actually served behind HTTPS
 
 If `AUTH_PASSWORD` is not set locally, the server will generate a temporary password and print it to the console at startup.
 

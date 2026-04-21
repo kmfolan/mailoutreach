@@ -18,6 +18,7 @@ Deploy Outbound Forge as a protected MVP behind HTTPS.
 - `AUTH_PASSWORD`
 - `AUTH_SESSION_SECRET`
 - `NODE_ENV=production`
+- `COOKIE_SECURE=true`
 
 ## First Steps
 
