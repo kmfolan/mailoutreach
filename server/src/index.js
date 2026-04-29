@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { getDashboard, getHealth, submitSetupRequest } from "./store.js";
+import { getDashboard, getHealth, getPlanById, submitSetupRequest, updateChecklistItem, updatePlanStatus } from "./store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -274,6 +274,10 @@ function validateSetupPayload(payload) {
   });
 }
 
+function getPathSegments(pathname) {
+  return pathname.split("/").filter(Boolean);
+}
+
 function resolveStaticPath(urlPath) {
   const requestedPath = urlPath === "/" ? "/index.html" : urlPath;
   const normalizedPath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
@@ -382,6 +386,45 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && pathname === "/api/dashboard") {
     sendJson(res, 200, getDashboard());
+    return;
+  }
+
+  if (req.method === "GET" && pathname.startsWith("/api/plans/")) {
+    const segments = getPathSegments(pathname);
+    const planId = segments[2];
+    const plan = getPlanById(planId);
+    if (!plan) {
+      sendJson(res, 404, { ok: false, error: "Plan not found" });
+      return;
+    }
+    sendJson(res, 200, { ok: true, plan });
+    return;
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/plans/") && pathname.endsWith("/status")) {
+    try {
+      const segments = getPathSegments(pathname);
+      const planId = segments[2];
+      const payload = await collectJsonBody(req);
+      const plan = updatePlanStatus(planId, payload.status);
+      sendJson(res, 200, { ok: true, plan });
+    } catch (error) {
+      sendJson(res, error.message === "Plan not found" ? 404 : 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "PATCH" && pathname.startsWith("/api/plans/") && pathname.includes("/checklist/")) {
+    try {
+      const segments = getPathSegments(pathname);
+      const planId = segments[2];
+      const itemId = segments[4];
+      const payload = await collectJsonBody(req);
+      const plan = updateChecklistItem(planId, itemId, payload.completed);
+      sendJson(res, 200, { ok: true, plan });
+    } catch (error) {
+      sendJson(res, error.message.includes("not found") ? 404 : 400, { ok: false, error: error.message });
+    }
     return;
   }
 

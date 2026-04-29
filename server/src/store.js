@@ -7,6 +7,8 @@ const __dirname = path.dirname(__filename);
 const dataDir = path.resolve(__dirname, "..", "data");
 const dbPath = path.join(dataDir, "db.json");
 
+const planStatuses = ["Planned", "Purchasing", "DNS setup", "Warmup", "Live"];
+
 const baseDb = {
   profile: {
     productName: "Outbound Forge",
@@ -22,6 +24,10 @@ function ensureDataFile() {
   if (!fs.existsSync(dbPath)) {
     fs.writeFileSync(dbPath, JSON.stringify(baseDb, null, 2));
   }
+}
+
+function createId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function loadDb() {
@@ -57,12 +63,13 @@ function formatDate(date = new Date()) {
   }).format(date);
 }
 
-function createId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getPlanStatusLabel(progress) {
+  const clamped = clamp(progress, 0, planStatuses.length - 1);
+  return planStatuses[clamped];
 }
 
 function buildWarmupPlan(mailboxes, dailyPerMailbox) {
@@ -89,6 +96,26 @@ function buildChecklist(domainCount, mailboxCount) {
   ];
 }
 
+function normalizeChecklist(items) {
+  return (items || []).map(item => {
+    if (typeof item === "string") {
+      return {
+        id: createId("task"),
+        label: item,
+        completed: false,
+        completedAt: null
+      };
+    }
+
+    return {
+      id: item.id || createId("task"),
+      label: item.label || item.title || "Checklist item",
+      completed: Boolean(item.completed),
+      completedAt: item.completedAt || null
+    };
+  });
+}
+
 function buildRecommendations(teamType, totalDailyCapacity) {
   const teamSpecific = {
     "Lead gen agency": "Segment infrastructure by client and keep one workspace per client cluster.",
@@ -109,6 +136,29 @@ function buildRecommendations(teamType, totalDailyCapacity) {
   ];
 }
 
+function buildRequestStatus(planStatus) {
+  return planStatus === "Live" ? "Live" : `${planStatus} in progress`;
+}
+
+function normalizePlan(plan) {
+  const checklist = normalizeChecklist(plan.checklist);
+  const status = planStatuses.includes(plan.status) ? plan.status : "Planned";
+  const stageIndex = planStatuses.indexOf(status);
+  const progress = stageIndex === -1 ? 0 : stageIndex;
+  const checklistCompleted = checklist.filter(item => item.completed).length;
+  const progressPercent = checklist.length > 0 ? Math.round((checklistCompleted / checklist.length) * 100) : 0;
+
+  return {
+    ...plan,
+    status,
+    progress,
+    checklist,
+    checklistCompleted,
+    checklistTotal: checklist.length,
+    progressPercent
+  };
+}
+
 function createPlan(payload) {
   const contactsPerMonth = Number(payload.contactsPerMonth);
   const sendingDays = Number(payload.sendingDays);
@@ -124,7 +174,7 @@ function createPlan(payload) {
   const monthlyDomainCost = recommendedDomains * 12;
   const rampWeeks = totalDailyCapacity > 2500 ? 4 : 3;
 
-  return {
+  return normalizePlan({
     id: createId("plan"),
     createdAt: new Date().toISOString(),
     companyName: payload.companyName,
@@ -145,14 +195,46 @@ function createPlan(payload) {
     monthlyDomainCost,
     estimatedMonthlyInfraCost: monthlyMailboxCost + monthlyDomainCost,
     rampWeeks,
+    status: "Planned",
     checklist: buildChecklist(recommendedDomains, roundedMailboxCount),
     warmupPlan: buildWarmupPlan(roundedMailboxCount, dailyPerMailbox),
     recommendations: buildRecommendations(payload.teamType, totalDailyCapacity)
-  };
+  });
+}
+
+function logActivity(title, body, createdAt = new Date().toISOString()) {
+  db.activity.unshift({
+    id: createId("activity"),
+    createdAt,
+    title,
+    body
+  });
+}
+
+function findPlan(planId) {
+  return db.plans.find(plan => plan.id === planId) || null;
+}
+
+function findRequestByPlan(planId) {
+  return db.requests.find(request => request.planId === planId) || null;
+}
+
+function syncStoredRecords() {
+  db.plans = db.plans.map(normalizePlan);
+  db.requests = db.requests.map(request => {
+    const linkedPlan = request.planId ? findPlan(request.planId) : null;
+    return {
+      ...request,
+      planId: request.planId || null,
+      status: request.status || (linkedPlan ? buildRequestStatus(linkedPlan.status) : "Plan generated")
+    };
+  });
+  persistDb();
 }
 
 function seedInitialPlan() {
   if (db.plans.length > 0) {
+    syncStoredRecords();
     return;
   }
 
@@ -171,31 +253,44 @@ function seedInitialPlan() {
 
   db.requests.push({
     id: createId("request"),
+    planId: plan.id,
     createdAt: plan.createdAt,
     ownerName: plan.ownerName,
     companyName: plan.companyName,
     email: plan.email,
-    status: "Plan generated"
+    status: buildRequestStatus(plan.status)
   });
   db.plans.unshift(plan);
-  db.activity.unshift(
-    {
-      id: createId("activity"),
-      createdAt: plan.createdAt,
-      title: "Starter workspace created",
-      body: `${plan.recommendedDomains} domains and ${plan.recommendedMailboxes} mailboxes recommended for ${plan.companyName}.`
-    },
-    {
-      id: createId("activity"),
-      createdAt: plan.createdAt,
-      title: "Warmup schedule drafted",
-      body: `Ramp plan spans ${plan.rampWeeks} weeks before full daily volume.`
-    }
-  );
+  logActivity("Starter workspace created", `${plan.recommendedDomains} domains and ${plan.recommendedMailboxes} mailboxes recommended for ${plan.companyName}.`, plan.createdAt);
+  logActivity("Warmup schedule drafted", `Ramp plan spans ${plan.rampWeeks} weeks before full daily volume.`, plan.createdAt);
   persistDb();
 }
 
 seedInitialPlan();
+
+function summarizeDashboard() {
+  const latestPlan = db.plans[0] || null;
+  const totalMonthlyInfraCost = db.plans.reduce((sum, plan) => sum + plan.estimatedMonthlyInfraCost, 0);
+  const livePlans = db.plans.filter(plan => plan.status === "Live").length;
+
+  return latestPlan
+    ? {
+        activePlans: db.plans.length,
+        livePlans,
+        latestCompany: latestPlan.companyName,
+        totalDailyCapacity: latestPlan.totalDailyCapacity,
+        mailboxCost: latestPlan.monthlyMailboxCost,
+        totalMonthlyInfraCost
+      }
+    : {
+        activePlans: 0,
+        livePlans: 0,
+        latestCompany: null,
+        totalDailyCapacity: 0,
+        mailboxCost: 0,
+        totalMonthlyInfraCost: 0
+      };
+}
 
 export function getHealth() {
   return {
@@ -207,61 +302,89 @@ export function getHealth() {
 
 export function getDashboard() {
   const latestPlan = db.plans[0] || null;
-  const totalMonthlyInfraCost = db.plans.reduce((sum, plan) => sum + plan.estimatedMonthlyInfraCost, 0);
 
   return {
     profile: db.profile,
-    summary: latestPlan
-      ? {
-          activePlans: db.plans.length,
-          latestCompany: latestPlan.companyName,
-          totalDailyCapacity: latestPlan.totalDailyCapacity,
-          mailboxCost: latestPlan.monthlyMailboxCost,
-          totalMonthlyInfraCost
-        }
-      : {
-          activePlans: 0,
-          latestCompany: null,
-          totalDailyCapacity: 0,
-          mailboxCost: 0,
-          totalMonthlyInfraCost: 0
-        },
+    summary: summarizeDashboard(),
     latestPlan,
     recentRequests: db.requests.slice(0, 6),
-    activity: db.activity.slice(0, 6),
-    planHistory: db.plans.slice(0, 12)
+    activity: db.activity.slice(0, 10),
+    planHistory: db.plans.slice(0, 12),
+    availableStatuses: planStatuses
   };
 }
 
+export function getPlanById(planId) {
+  return findPlan(planId);
+}
+
 export function submitSetupRequest(payload) {
+  const plan = createPlan(payload);
   const request = {
     id: createId("request"),
+    planId: plan.id,
     createdAt: new Date().toISOString(),
     ownerName: payload.ownerName,
     companyName: payload.companyName,
     email: payload.email,
-    status: "Plan generated"
+    status: buildRequestStatus(plan.status)
   };
-
-  const plan = createPlan(payload);
 
   db.requests.unshift(request);
   db.plans.unshift(plan);
-  db.activity.unshift(
-    {
-      id: createId("activity"),
-      createdAt: request.createdAt,
-      title: "New infrastructure plan generated",
-      body: `${plan.companyName} now has a recommended stack of ${plan.recommendedDomains} domains and ${plan.recommendedMailboxes} mailboxes.`
-    },
-    {
-      id: createId("activity"),
-      createdAt: request.createdAt,
-      title: "Checklist ready for ops handoff",
-      body: `${formatDate(new Date(request.createdAt))}: authentication, warmup, and sequencer connection tasks prepared.`
-    }
-  );
+  logActivity("New infrastructure plan generated", `${plan.companyName} now has a recommended stack of ${plan.recommendedDomains} domains and ${plan.recommendedMailboxes} mailboxes.`, request.createdAt);
+  logActivity("Checklist ready for ops handoff", `${formatDate(new Date(request.createdAt))}: authentication, warmup, and sequencer connection tasks prepared.`, request.createdAt);
 
   persistDb();
   return { request, plan };
+}
+
+export function updatePlanStatus(planId, nextStatus) {
+  if (!planStatuses.includes(nextStatus)) {
+    throw new Error("Invalid plan status");
+  }
+
+  const plan = findPlan(planId);
+  if (!plan) {
+    throw new Error("Plan not found");
+  }
+
+  plan.status = nextStatus;
+  plan.progress = planStatuses.indexOf(nextStatus);
+
+  const request = findRequestByPlan(planId);
+  if (request) {
+    request.status = buildRequestStatus(nextStatus);
+  }
+
+  logActivity("Plan status updated", `${plan.companyName} moved to ${nextStatus}.`);
+  persistDb();
+  return plan;
+}
+
+export function updateChecklistItem(planId, itemId, completed) {
+  const plan = findPlan(planId);
+  if (!plan) {
+    throw new Error("Plan not found");
+  }
+
+  const item = plan.checklist.find(entry => entry.id === itemId);
+  if (!item) {
+    throw new Error("Checklist item not found");
+  }
+
+  item.completed = Boolean(completed);
+  item.completedAt = item.completed ? new Date().toISOString() : null;
+
+  const checklistCompleted = plan.checklist.filter(entry => entry.completed).length;
+  plan.checklistCompleted = checklistCompleted;
+  plan.progressPercent = plan.checklist.length > 0 ? Math.round((checklistCompleted / plan.checklist.length) * 100) : 0;
+
+  logActivity(
+    item.completed ? "Checklist item completed" : "Checklist item reopened",
+    `${plan.companyName}: ${item.label}`
+  );
+
+  persistDb();
+  return plan;
 }

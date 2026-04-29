@@ -263,6 +263,7 @@ li {
 .panel-heading,
 .setup-form,
 .plan-summary,
+.plan-controls,
 .checklist-block,
 .timeline-list {
   display: grid;
@@ -364,11 +365,107 @@ textarea {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.plan-controls {
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(152, 182, 255, 0.1);
+}
+
+.summary-topline,
+.history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.progress-copy {
+  color: var(--muted-strong);
+  font-size: 0.95rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--accent), var(--secondary));
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(140, 168, 255, 0.16);
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.status-planned {
+  background: rgba(140, 168, 255, 0.18);
+}
+
+.status-purchasing {
+  background: rgba(255, 211, 120, 0.18);
+}
+
+.status-dns-setup {
+  background: rgba(114, 210, 255, 0.18);
+}
+
+.status-warmup {
+  background: rgba(142, 227, 196, 0.18);
+}
+
+.status-live {
+  background: rgba(84, 181, 150, 0.26);
+  color: #d9fff1;
+}
+
 .stack-list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
   display: grid;
   gap: 10px;
+}
+
+.checklist-item {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(152, 182, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.checklist-item.is-complete {
+  border-color: rgba(142, 227, 196, 0.28);
+  background: rgba(142, 227, 196, 0.07);
+}
+
+.checklist-toggle {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.checklist-toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  accent-color: var(--accent-deep);
 }
 
 .history-layout {
@@ -392,6 +489,15 @@ textarea {
   background: rgba(255, 255, 255, 0.03);
   display: grid;
   gap: 8px;
+}
+
+.history-card.is-active {
+  border-color: rgba(142, 227, 196, 0.36);
+  box-shadow: 0 18px 40px rgba(142, 227, 196, 0.08);
+}
+
+.history-load-button {
+  width: fit-content;
 }
 
 .warmup-grid {

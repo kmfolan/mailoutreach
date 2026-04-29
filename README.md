@@ -14,6 +14,9 @@ Outbound Forge is a local MVP for planning cold email infrastructure with a prot
 - plan history shown in the dashboard instead of only the latest result
 - browser draft saving for planner inputs
 - one-click copy/export of the generated plan summary
+- rollout status management for saved plans
+- checklist completion tracking for DNS, mailbox, and warmup tasks
+- selectable saved plans so ops can reopen and continue older setups
 
 ## Current Limits
 
@@ -21,6 +24,7 @@ Outbound Forge is a local MVP for planning cold email infrastructure with a prot
 - no real mailbox or domain provisioning yet
 - no multi-user accounts yet
 - no HTTPS termination inside this Node server itself
+- sessions are still in memory, so login sessions reset on server restart
 
 ## Required Environment Variables For Real Use
 

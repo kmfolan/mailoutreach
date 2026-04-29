@@ -168,11 +168,11 @@
               </label>
             </div>
 
-            <div class="form-actions">
-              <button class="button button-primary" type="submit">Generate live plan</button>
-              <button class="button button-ghost" type="button" id="reset-draft-button">Reset draft</button>
-              <p id="form-status" class="status-text">Ready to submit.</p>
-            </div>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Generate live plan</button>
+            <button class="button button-ghost" type="button" id="reset-draft-button">Reset draft</button>
+            <p id="form-status" class="status-text">Ready to submit.</p>
+          </div>
           </form>
         </article>
 
@@ -203,6 +203,20 @@
 
           <div class="plan-summary" id="plan-summary">
             <p>Submit a request to see the calculated infrastructure summary.</p>
+          </div>
+
+          <div class="plan-controls">
+            <label>
+              Delivery stage
+              <select id="plan-status-select">
+                <option>Planned</option>
+                <option>Purchasing</option>
+                <option>DNS setup</option>
+                <option>Warmup</option>
+                <option>Live</option>
+              </select>
+            </label>
+            <p id="plan-status-message" class="status-text">Select a saved plan to manage its rollout stage.</p>
           </div>
 
           <div class="form-actions">
@@ -249,6 +263,7 @@
           <div class="panel-heading">
             <p class="eyebrow">Plan history</p>
             <h2>Recently generated infrastructure plans.</h2>
+            <p>Load any saved plan, update its stage, and check off rollout tasks as the setup moves forward.</p>
           </div>
 
           <div id="plan-history" class="history-list"></div>
