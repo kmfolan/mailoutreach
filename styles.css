@@ -87,7 +87,9 @@ body::before {
 .mini-grid,
 .results-grid,
 .form-grid,
-.warmup-grid {
+.warmup-grid,
+.insight-grid,
+.source-grid {
   display: grid;
   gap: 24px;
 }
@@ -442,6 +444,10 @@ textarea {
   gap: 10px;
 }
 
+.compact-list {
+  gap: 8px;
+}
+
 .checklist-item {
   padding: 14px 16px;
   border-radius: var(--radius-md);
@@ -504,6 +510,27 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.insight-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.source-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.insight-card {
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(152, 182, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 10px;
+}
+
+.insight-card-wide {
+  grid-column: 1 / -1;
+}
+
 .warmup-card strong {
   font-size: 1.35rem;
 }
@@ -536,13 +563,38 @@ textarea {
   margin: 8px 0;
 }
 
+.source-card strong {
+  font-size: 1rem;
+}
+
+.status-high,
+.status-medium,
+.status-opportunity,
+.status-info {
+  background: rgba(140, 168, 255, 0.16);
+}
+
+.status-high {
+  background: rgba(255, 140, 136, 0.18);
+}
+
+.status-medium {
+  background: rgba(255, 211, 120, 0.18);
+}
+
+.status-opportunity {
+  background: rgba(142, 227, 196, 0.18);
+}
+
 @media (max-width: 1080px) {
   .topbar,
   .hero-layout,
   .planner-layout,
   .workspace-layout,
   .warmup-grid,
-  .history-list {
+  .history-list,
+  .insight-grid,
+  .source-grid {
     grid-template-columns: 1fr;
   }
 
@@ -564,7 +616,9 @@ textarea {
   .hero-stats,
   .mini-grid,
   .results-grid,
-  .form-grid {
+  .form-grid,
+  .insight-grid,
+  .source-grid {
     grid-template-columns: 1fr;
   }
 

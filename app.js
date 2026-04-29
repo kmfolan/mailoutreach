@@ -4,9 +4,9 @@ const summaryCards = document.getElementById("summary-cards");
 const planMetrics = document.getElementById("plan-metrics");
 const planSummary = document.getElementById("plan-summary");
 const checklistList = document.getElementById("checklist-list");
-const recommendationsList = document.getElementById("recommendations-list");
-const warmupGrid = document.getElementById("warmup-grid");
-const recentRequests = document.getElementById("recent-requests");
+const findingsGrid = document.getElementById("recommendations-list");
+const sourceGrid = document.getElementById("warmup-grid");
+const sequenceList = document.getElementById("recent-requests");
 const activityFeed = document.getElementById("activity-feed");
 const planHistory = document.getElementById("plan-history");
 const logoutButton = document.getElementById("logout-button");
@@ -16,21 +16,9 @@ const copyStatus = document.getElementById("copy-status");
 const planStatusSelect = document.getElementById("plan-status-select");
 const planStatusMessage = document.getElementById("plan-status-message");
 
-const formDraftKey = "outbound-forge-form-draft";
-let latestPlan = null;
-let availableStatuses = ["Planned", "Purchasing", "DNS setup", "Warmup", "Live"];
-
-function formatNumber(value) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0
-  }).format(value);
-}
+const formDraftKey = "mailoutreach-form-draft";
+let latestReport = null;
+let availableStatuses = ["Researching", "Drafted", "Reviewing", "Ready to Send", "Live"];
 
 async function requestJson(url, options) {
   const response = await fetch(url, options);
@@ -51,15 +39,14 @@ async function requestJson(url, options) {
 function getFormPayload() {
   const formData = new FormData(form);
   return {
-    ownerName: formData.get("ownerName")?.toString().trim(),
     companyName: formData.get("companyName")?.toString().trim(),
-    email: formData.get("email")?.toString().trim(),
-    teamType: formData.get("teamType")?.toString().trim(),
-    platform: formData.get("platform")?.toString().trim(),
-    contactsPerMonth: Number(formData.get("contactsPerMonth")),
-    sendingDays: Number(formData.get("sendingDays")),
-    dailyPerMailbox: Number(formData.get("dailyPerMailbox")),
-    mailboxesPerDomain: Number(formData.get("mailboxesPerDomain")),
+    websiteUrl: formData.get("websiteUrl")?.toString().trim(),
+    location: formData.get("location")?.toString().trim(),
+    cta: formData.get("cta")?.toString().trim(),
+    auditMode: formData.get("auditMode")?.toString().trim(),
+    painPoints: formData.get("painPoints")?.toString().trim(),
+    sourceUrls: formData.get("sourceUrls")?.toString().trim(),
+    reportRequirements: formData.get("reportRequirements")?.toString().trim(),
     notes: formData.get("notes")?.toString().trim() || ""
   };
 }
@@ -94,41 +81,41 @@ function restoreDraft() {
   formStatus.className = "status-text info";
 }
 
+function syncStatusSelect(status) {
+  planStatusSelect.innerHTML = availableStatuses
+    .map(option => `<option value="${option}" ${option === status ? "selected" : ""}>${option}</option>`)
+    .join("");
+  planStatusSelect.disabled = !latestReport;
+}
+
 function renderSummary(summary) {
   summaryCards.innerHTML = `
     <article class="stat-card">
-      <span class="label">Active plans</span>
-      <strong>${formatNumber(summary.activePlans)}</strong>
+      <span class="label">Active reports</span>
+      <strong>${summary.activeReports || 0}</strong>
     </article>
     <article class="stat-card">
-      <span class="label">Live plans</span>
-      <strong>${formatNumber(summary.livePlans || 0)}</strong>
+      <span class="label">Ready to send</span>
+      <strong>${summary.readyToSend || 0}</strong>
     </article>
     <article class="stat-card">
       <span class="label">Latest company</span>
       <strong>${summary.latestCompany || "None yet"}</strong>
     </article>
     <article class="stat-card">
-      <span class="label">Portfolio infra cost</span>
-      <strong>${formatCurrency(summary.totalMonthlyInfraCost)}</strong>
+      <span class="label">Source coverage</span>
+      <strong>${summary.sourceCoverage || 0}</strong>
     </article>
   `;
 }
 
-function syncStatusSelect(status) {
-  planStatusSelect.innerHTML = availableStatuses
-    .map(option => `<option value="${option}" ${option === status ? "selected" : ""}>${option}</option>`)
-    .join("");
-  planStatusSelect.disabled = !latestPlan;
-}
-
-function renderChecklist(plan) {
-  if (!plan || !plan.checklist || plan.checklist.length === 0) {
-    checklistList.innerHTML = `<li class="empty-state">Execution checklist appears after the first generated plan.</li>`;
+function renderChecklist(report) {
+  if (!report || !report.checklist || report.checklist.length === 0) {
+    checklistList.innerHTML = `<li class="empty-state">Checklist items appear after the first generated report.</li>`;
     return;
   }
 
-  checklistList.innerHTML = plan.checklist
+  checklistList.innerHTML = report.checklist
     .map(item => `
       <li class="checklist-item ${item.completed ? "is-complete" : ""}">
         <label class="checklist-toggle">
@@ -140,101 +127,87 @@ function renderChecklist(plan) {
     .join("");
 }
 
-function renderRecommendations(plan) {
-  recommendationsList.innerHTML = plan && (plan.recommendations || []).length > 0
-    ? plan.recommendations.map(item => `<li>${item}</li>`).join("")
-    : `<li class="empty-state">Operator recommendations appear after the first generated plan.</li>`;
-}
-
-function renderWarmup(plan) {
-  warmupGrid.innerHTML = plan && (plan.warmupPlan || []).length > 0
-    ? plan.warmupPlan
-        .map(item => `
-          <article class="warmup-card">
-            <span class="label">${item.week}</span>
-            <strong>${formatNumber(item.sendPerMailbox)}</strong>
-            <p>emails per mailbox / day</p>
-            <p>Total safe volume: ${formatNumber(item.totalDailyVolume)} / day</p>
-          </article>
-        `)
-        .join("")
-    : `<article class="empty-state">Warmup recommendations will appear here.</article>`;
-}
-
-function renderPlan(plan) {
-  latestPlan = plan;
-
-  if (!plan) {
-    planMetrics.innerHTML = "";
-    planSummary.innerHTML = "<p>No plan generated yet.</p>";
-    renderChecklist(null);
-    renderRecommendations(null);
-    renderWarmup(null);
-    syncStatusSelect("Planned");
-    planStatusMessage.textContent = "Generate a plan before changing rollout status.";
-    planStatusMessage.className = "status-text";
+function renderFindings(report) {
+  if (!report) {
+    findingsGrid.innerHTML = `<article class="empty-state">Findings, custom sections, and intent signals will appear here.</article>`;
     return;
   }
 
-  syncStatusSelect(plan.status);
+  const findingsMarkup = (report.findings || [])
+    .map(item => `
+      <article class="insight-card">
+        <div class="history-card-top">
+          <strong>${item.title}</strong>
+          <span class="status-pill status-${String(item.severity || "info").toLowerCase().replace(/[^a-z0-9]+/g, "-")}">${item.severity}</span>
+        </div>
+        <p>${item.evidence}</p>
+        <p><strong>Recommendation:</strong> ${item.recommendation}</p>
+      </article>
+    `)
+    .join("");
 
-  planMetrics.innerHTML = `
-    <article class="metric-card">
-      <span class="label">Domains</span>
-      <strong>${formatNumber(plan.recommendedDomains)}</strong>
-    </article>
-    <article class="metric-card">
-      <span class="label">Mailboxes</span>
-      <strong>${formatNumber(plan.recommendedMailboxes)}</strong>
-    </article>
-    <article class="metric-card">
-      <span class="label">Daily capacity</span>
-      <strong>${formatNumber(plan.totalDailyCapacity)}</strong>
-    </article>
-    <article class="metric-card">
-      <span class="label">Infra cost</span>
-      <strong>${formatCurrency(plan.estimatedMonthlyInfraCost)}</strong>
-    </article>
-  `;
+  const sectionMarkup = (report.customSections || [])
+    .map(section => `
+      <article class="insight-card">
+        <strong>${section.title}</strong>
+        <ul class="stack-list compact-list">
+          ${(section.bullets || []).map(item => `<li>${item}</li>`).join("")}
+        </ul>
+      </article>
+    `)
+    .join("");
 
-  planSummary.innerHTML = `
-    <div class="summary-topline">
-      <span class="status-pill status-${plan.status.toLowerCase().replace(/[^a-z0-9]+/g, "-")}">${plan.status}</span>
-      <span class="progress-copy">${plan.checklistCompleted || 0} / ${plan.checklistTotal || 0} tasks complete</span>
-    </div>
-    <p>
-      ${plan.companyName} should start with <strong>${plan.recommendedDomains} domains</strong>,
-      <strong>${plan.recommendedMailboxes} mailboxes</strong>, and a warmup ramp of
-      <strong>${plan.rampWeeks} weeks</strong>.
-    </p>
-    <p>
-      Stack assumption: <strong>${plan.platform}</strong>, <strong>${plan.dailyPerMailbox}</strong> emails per mailbox per day,
-      and <strong>${plan.mailboxesPerDomain}</strong> mailboxes per domain.
-    </p>
-    <div class="progress-track" aria-hidden="true">
-      <span class="progress-bar" style="width:${plan.progressPercent || 0}%"></span>
-    </div>
-  `;
+  const intentMarkup = (report.intentSignals || []).length > 0
+    ? `
+      <article class="insight-card insight-card-wide">
+        <strong>Intent signals</strong>
+        <ul class="stack-list compact-list">
+          ${report.intentSignals.map(item => `<li>${item}</li>`).join("")}
+        </ul>
+      </article>
+    `
+    : `
+      <article class="insight-card insight-card-wide">
+        <strong>Intent signals</strong>
+        <p>No strong public intent signal was detected from the provided source set.</p>
+      </article>
+    `;
 
-  renderChecklist(plan);
-  renderRecommendations(plan);
-  renderWarmup(plan);
-  planStatusMessage.textContent = `Managing rollout for ${plan.companyName}.`;
-  planStatusMessage.className = "status-text info";
+  findingsGrid.innerHTML = findingsMarkup + sectionMarkup + intentMarkup;
 }
 
-function renderRecentRequests(items) {
-  recentRequests.innerHTML = items.length > 0
-    ? items
+function renderSources(report) {
+  if (!report) {
+    sourceGrid.innerHTML = `<article class="empty-state">Source snapshots appear here after the first report run.</article>`;
+    return;
+  }
+
+  const cards = [report.websiteSnapshot, ...(report.sourceSnapshots || [])]
+    .filter(Boolean)
+    .map(source => `
+      <article class="warmup-card source-card">
+        <span class="label">${source.url || "Source"}</span>
+        <strong>${source.title || source.h1 || "No title captured"}</strong>
+        <p>${source.description || source.notes?.[0] || "No meta description captured."}</p>
+        <p>Status: ${source.reachable ? "reachable" : source.status || "unknown"}</p>
+      </article>
+    `)
+    .join("");
+
+  sourceGrid.innerHTML = cards || `<article class="empty-state">No sources were available to render.</article>`;
+}
+
+function renderSequence(report) {
+  sequenceList.innerHTML = report && (report.outreachSequence || []).length > 0
+    ? report.outreachSequence
         .map(item => `
           <article class="timeline-item">
-            <strong>${item.companyName}</strong>
-            <p>${item.ownerName} - ${item.email}</p>
-            <p>${item.status}</p>
+            <strong>Email ${item.step}: ${item.subject}</strong>
+            <p>${item.body.replace(/\n/g, "<br>")}</p>
           </article>
         `)
         .join("")
-    : `<article class="empty-state">No setup requests saved yet.</article>`;
+    : `<article class="empty-state">The 3-email outreach sequence will appear here.</article>`;
 }
 
 function renderActivity(items) {
@@ -248,32 +221,94 @@ function renderActivity(items) {
           </article>
         `)
         .join("")
-    : `<article class="empty-state">No activity yet. Generate a plan to populate this feed.</article>`;
+    : `<article class="empty-state">No activity yet. Generate a report to populate this feed.</article>`;
 }
 
-function renderPlanHistory(items) {
+function renderHistory(items) {
   planHistory.innerHTML = items.length > 0
     ? items
         .map(item => `
-          <article class="history-card ${latestPlan && latestPlan.id === item.id ? "is-active" : ""}">
+          <article class="history-card ${latestReport && latestReport.id === item.id ? "is-active" : ""}">
             <div class="history-card-top">
               <strong>${item.companyName}</strong>
               <span class="status-pill status-${item.status.toLowerCase().replace(/[^a-z0-9]+/g, "-")}">${item.status}</span>
             </div>
-            <p>${new Date(item.createdAt).toLocaleString()}</p>
-            <p>${formatNumber(item.recommendedDomains)} domains - ${formatNumber(item.recommendedMailboxes)} mailboxes</p>
-            <p>${formatNumber(item.totalDailyCapacity)} daily capacity - ${formatCurrency(item.estimatedMonthlyInfraCost)} / month</p>
-            <p>${item.checklistCompleted || 0} / ${item.checklistTotal || 0} rollout tasks complete</p>
-            <button class="button button-ghost history-load-button" type="button" data-plan-id="${item.id}">Open plan</button>
+            <p>${item.location || "No location captured"}</p>
+            <p>${item.auditMode || "Mixed"} report for CTA: ${item.cta || "n/a"}</p>
+            <p>${(item.findings || []).length} findings, ${(item.customSections || []).length} custom sections</p>
+            <button class="button button-ghost history-load-button" type="button" data-plan-id="${item.id}">Open report</button>
           </article>
         `)
         .join("")
-    : `<article class="empty-state">Plan history will populate after the first generated request.</article>`;
+    : `<article class="empty-state">Saved reports will appear here.</article>`;
 }
 
-async function loadPlan(planId) {
-  const response = await requestJson(`/api/plans/${planId}`);
-  renderPlan(response.plan);
+function renderReport(report) {
+  latestReport = report;
+
+  if (!report) {
+    planMetrics.innerHTML = `
+      <article class="metric-card"><span class="label">Findings</span><strong>0</strong></article>
+      <article class="metric-card"><span class="label">Custom sections</span><strong>0</strong></article>
+      <article class="metric-card"><span class="label">Reviewed sources</span><strong>0</strong></article>
+      <article class="metric-card"><span class="label">Sequence steps</span><strong>0</strong></article>
+    `;
+    planSummary.innerHTML = "<p>No report generated yet.</p>";
+    syncStatusSelect("Drafted");
+    renderChecklist(null);
+    renderFindings(null);
+    renderSources(null);
+    renderSequence(null);
+    planStatusMessage.textContent = "Generate a report before changing workflow stage.";
+    planStatusMessage.className = "status-text";
+    return;
+  }
+
+  syncStatusSelect(report.status);
+
+  planMetrics.innerHTML = `
+    <article class="metric-card">
+      <span class="label">Findings</span>
+      <strong>${(report.findings || []).length}</strong>
+    </article>
+    <article class="metric-card">
+      <span class="label">Custom sections</span>
+      <strong>${(report.customSections || []).length}</strong>
+    </article>
+    <article class="metric-card">
+      <span class="label">Reviewed sources</span>
+      <strong>${1 + (report.sourceSnapshots || []).length}</strong>
+    </article>
+    <article class="metric-card">
+      <span class="label">Sequence steps</span>
+      <strong>${(report.outreachSequence || []).length}</strong>
+    </article>
+  `;
+
+  planSummary.innerHTML = `
+    <div class="summary-topline">
+      <span class="status-pill status-${report.status.toLowerCase().replace(/[^a-z0-9]+/g, "-")}">${report.status}</span>
+      <span class="progress-copy">${report.checklistCompleted || 0} / ${report.checklistTotal || 0} tasks complete</span>
+    </div>
+    <p>${report.executiveSummary}</p>
+    <p><strong>CTA:</strong> ${report.cta}</p>
+    <p><strong>Pain points:</strong> ${(report.painPoints || []).join(", ") || "None listed"}</p>
+    <div class="progress-track" aria-hidden="true">
+      <span class="progress-bar" style="width:${report.progressPercent || 0}%"></span>
+    </div>
+  `;
+
+  renderChecklist(report);
+  renderFindings(report);
+  renderSources(report);
+  renderSequence(report);
+  planStatusMessage.textContent = `Managing report for ${report.companyName}.`;
+  planStatusMessage.className = "status-text info";
+}
+
+async function loadReport(reportId) {
+  const response = await requestJson(`/api/plans/${reportId}`);
+  renderReport(response.plan);
 }
 
 async function loadDashboard() {
@@ -281,26 +316,24 @@ async function loadDashboard() {
   const dashboard = await requestJson("/api/dashboard");
   availableStatuses = dashboard.availableStatuses || availableStatuses;
   renderSummary(dashboard.summary);
-  renderPlan(dashboard.latestPlan);
-  renderRecentRequests(dashboard.recentRequests);
+  renderReport(dashboard.latestReport);
   renderActivity(dashboard.activity);
-  renderPlanHistory(dashboard.planHistory || []);
+  renderHistory(dashboard.reportHistory || []);
 }
 
-async function refreshDashboardAndKeepPlan(planId) {
+async function refreshDashboardAndKeepReport(reportId) {
   await loadDashboard();
-  if (planId) {
-    await loadPlan(planId);
+  if (reportId) {
+    await loadReport(reportId);
     const dashboard = await requestJson("/api/dashboard");
-    renderRecentRequests(dashboard.recentRequests);
     renderActivity(dashboard.activity);
-    renderPlanHistory(dashboard.planHistory || []);
+    renderHistory(dashboard.reportHistory || []);
   }
 }
 
 async function handleSubmit(event) {
   event.preventDefault();
-  formStatus.textContent = "Generating plan...";
+  formStatus.textContent = "Generating report and outreach sequence...";
   formStatus.className = "status-text";
 
   try {
@@ -313,15 +346,14 @@ async function handleSubmit(event) {
     });
 
     saveDraft();
-    formStatus.textContent = "Plan generated and workspace updated.";
+    formStatus.textContent = "Report draft created and sequence generated.";
     formStatus.className = "status-text success";
     await loadDashboard();
     if (result.plan?.id) {
-      await loadPlan(result.plan.id);
+      await loadReport(result.plan.id);
       const dashboard = await requestJson("/api/dashboard");
-      renderRecentRequests(dashboard.recentRequests);
       renderActivity(dashboard.activity);
-      renderPlanHistory(dashboard.planHistory || []);
+      renderHistory(dashboard.reportHistory || []);
     }
   } catch (error) {
     formStatus.textContent = error.message;
@@ -329,51 +361,44 @@ async function handleSubmit(event) {
   }
 }
 
-function buildPlanExportText() {
-  if (!latestPlan) {
+function buildExportText() {
+  if (!latestReport) {
     return "";
   }
 
-  const checklist = (latestPlan.checklist || [])
-    .map(item => `- [${item.completed ? "x" : " "}] ${item.label}`)
-    .join("\n");
-  const recommendations = (latestPlan.recommendations || []).map(item => `- ${item}`).join("\n");
-  const warmup = (latestPlan.warmupPlan || [])
-    .map(item => `${item.week}: ${formatNumber(item.sendPerMailbox)} per mailbox/day, ${formatNumber(item.totalDailyVolume)} total/day`)
-    .join("\n");
-
   return [
-    `Outbound Forge Plan for ${latestPlan.companyName}`,
+    `MailOutreach report for ${latestReport.companyName}`,
     "",
-    `Owner: ${latestPlan.ownerName}`,
-    `Platform: ${latestPlan.platform}`,
-    `Status: ${latestPlan.status}`,
-    `Recommended domains: ${latestPlan.recommendedDomains}`,
-    `Recommended mailboxes: ${latestPlan.recommendedMailboxes}`,
-    `Daily capacity: ${formatNumber(latestPlan.totalDailyCapacity)}`,
-    `Estimated monthly infra cost: ${formatCurrency(latestPlan.estimatedMonthlyInfraCost)}`,
+    `Website: ${latestReport.websiteUrl}`,
+    `Location: ${latestReport.location}`,
+    `CTA: ${latestReport.cta}`,
+    `Audit mode: ${latestReport.auditMode}`,
+    `Status: ${latestReport.status}`,
     "",
-    "Recommendations:",
-    recommendations || "- None",
+    "Executive summary:",
+    latestReport.executiveSummary,
     "",
-    "Checklist:",
-    checklist || "- None",
+    "Findings:",
+    ...(latestReport.findings || []).map(item => `- ${item.title}: ${item.recommendation}`),
     "",
-    "Warmup ramp:",
-    warmup || "- None"
+    "Custom report sections:",
+    ...(latestReport.customSections || []).map(section => `- ${section.title}: ${(section.bullets || []).join(" | ")}`),
+    "",
+    "3-email sequence:",
+    ...(latestReport.outreachSequence || []).map(item => `Email ${item.step} - ${item.subject}\n${item.body}`)
   ].join("\n");
 }
 
 async function handleCopyPlan() {
-  if (!latestPlan) {
-    copyStatus.textContent = "Generate a plan before copying.";
+  if (!latestReport) {
+    copyStatus.textContent = "Generate a report before copying.";
     copyStatus.className = "status-text error";
     return;
   }
 
   try {
-    await navigator.clipboard.writeText(buildPlanExportText());
-    copyStatus.textContent = "Plan summary copied to clipboard.";
+    await navigator.clipboard.writeText(buildExportText());
+    copyStatus.textContent = "Report and outreach sequence copied.";
     copyStatus.className = "status-text success";
   } catch {
     copyStatus.textContent = "Clipboard copy failed in this browser.";
@@ -401,15 +426,15 @@ async function handleLogout() {
 }
 
 async function handleStatusChange() {
-  if (!latestPlan) {
+  if (!latestReport) {
     return;
   }
 
-  planStatusMessage.textContent = "Saving rollout stage...";
+  planStatusMessage.textContent = "Saving workflow stage...";
   planStatusMessage.className = "status-text";
 
   try {
-    const result = await requestJson(`/api/plans/${latestPlan.id}/status`, {
+    const result = await requestJson(`/api/plans/${latestReport.id}/status`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json"
@@ -417,9 +442,9 @@ async function handleStatusChange() {
       body: JSON.stringify({ status: planStatusSelect.value })
     });
 
-    renderPlan(result.plan);
-    await refreshDashboardAndKeepPlan(result.plan.id);
-    planStatusMessage.textContent = `Status updated to ${result.plan.status}.`;
+    renderReport(result.plan);
+    await refreshDashboardAndKeepReport(result.plan.id);
+    planStatusMessage.textContent = `Workflow stage updated to ${result.plan.status}.`;
     planStatusMessage.className = "status-text success";
   } catch (error) {
     planStatusMessage.textContent = error.message;
@@ -429,13 +454,13 @@ async function handleStatusChange() {
 
 async function handleChecklistToggle(event) {
   const checkbox = event.target.closest("input[type='checkbox'][data-checklist-id]");
-  if (!checkbox || !latestPlan) {
+  if (!checkbox || !latestReport) {
     return;
   }
 
   const previousChecked = !checkbox.checked;
   try {
-    const result = await requestJson(`/api/plans/${latestPlan.id}/checklist/${checkbox.dataset.checklistId}`, {
+    const result = await requestJson(`/api/plans/${latestReport.id}/checklist/${checkbox.dataset.checklistId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json"
@@ -443,8 +468,8 @@ async function handleChecklistToggle(event) {
       body: JSON.stringify({ completed: checkbox.checked })
     });
 
-    renderPlan(result.plan);
-    await refreshDashboardAndKeepPlan(result.plan.id);
+    renderReport(result.plan);
+    await refreshDashboardAndKeepReport(result.plan.id);
   } catch (error) {
     checkbox.checked = previousChecked;
     planStatusMessage.textContent = error.message;
@@ -452,17 +477,17 @@ async function handleChecklistToggle(event) {
   }
 }
 
-async function handlePlanHistoryClick(event) {
+async function handleHistoryClick(event) {
   const button = event.target.closest("[data-plan-id]");
   if (!button) {
     return;
   }
 
   try {
-    await loadPlan(button.dataset.planId);
+    await loadReport(button.dataset.planId);
     const dashboard = await requestJson("/api/dashboard");
-    renderPlanHistory(dashboard.planHistory || []);
-    planStatusMessage.textContent = `Loaded ${latestPlan.companyName}.`;
+    renderHistory(dashboard.reportHistory || []);
+    planStatusMessage.textContent = `Loaded ${latestReport.companyName}.`;
     planStatusMessage.className = "status-text info";
   } catch (error) {
     planStatusMessage.textContent = error.message;
@@ -483,7 +508,7 @@ resetDraftButton.addEventListener("click", handleResetDraft);
 copyPlanButton.addEventListener("click", handleCopyPlan);
 planStatusSelect.addEventListener("change", handleStatusChange);
 checklistList.addEventListener("change", handleChecklistToggle);
-planHistory.addEventListener("click", handlePlanHistoryClick);
+planHistory.addEventListener("click", handleHistoryClick);
 
 restoreDraft();
 loadDashboard().catch(error => {

@@ -267,7 +267,7 @@ function collectJsonBody(req) {
 }
 
 function validateSetupPayload(payload) {
-  const requiredFields = ["ownerName", "companyName", "email", "teamType", "platform", "contactsPerMonth", "sendingDays", "dailyPerMailbox", "mailboxesPerDomain"];
+  const requiredFields = ["companyName", "websiteUrl", "location", "cta", "auditMode", "painPoints", "reportRequirements"];
   return requiredFields.filter(field => {
     const value = payload[field];
     return value === undefined || value === null || value === "";
@@ -436,7 +436,7 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: `Missing required fields: ${missing.join(", ")}` });
         return;
       }
-      const result = submitSetupRequest(payload);
+      const result = await submitSetupRequest(payload);
       sendJson(res, 201, { ok: true, ...result });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });

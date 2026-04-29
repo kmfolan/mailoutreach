@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outbound Forge | Outbound Infrastructure Planner</title>
+  <title>MailOutreach | Audit and Outreach Workspace</title>
   <meta
     name="description"
-    content="Outbound Forge is a functional MVP for planning domains, mailboxes, and warmup schedules for cold email infrastructure."
+    content="MailOutreach turns a target company, CTA, pain points, and source links into a fluid client report plus a 3-email outreach sequence."
   >
   <meta name="theme-color" content="#0f1324">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Outbound Forge">
+  <meta name="apple-mobile-web-app-title" content="MailOutreach">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,22 +27,22 @@
 
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#home" aria-label="Outbound Forge home">
-        <span class="brand-badge">OF</span>
+      <a class="brand" href="#home" aria-label="MailOutreach home">
+        <span class="brand-badge">MO</span>
         <span>
-          <strong>Outbound Forge</strong>
-          <small>Infrastructure planner MVP</small>
+          <strong>MailOutreach</strong>
+          <small>Fluid audit + sequence workspace</small>
         </span>
       </a>
 
       <nav class="nav" aria-label="Primary">
-        <a href="#planner">Planner</a>
-        <a href="#workspace">Workspace</a>
-        <a href="#activity">Activity</a>
+        <a href="#brief">Brief</a>
+        <a href="#report">Report</a>
+        <a href="#history">History</a>
       </nav>
 
       <div class="topbar-actions">
-        <a class="button button-ghost" href="#planner">Build a plan</a>
+        <a class="button button-ghost" href="#brief">New report</a>
         <button class="button button-ghost" type="button" id="logout-button">Sign out</button>
       </div>
     </header>
@@ -50,21 +50,26 @@
     <main id="home">
       <section class="hero-layout">
         <div class="hero-copy">
-          <p class="eyebrow">Working MVP, not a mockup</p>
-          <h1>Plan your outbound infrastructure before you start burning inboxes.</h1>
+          <p class="eyebrow">Client-specific outreach prep</p>
+          <h1>Build a fluid report, surface pain points, and draft the outreach sequence.</h1>
           <p class="hero-text">
-            Outbound Forge gives you a real setup plan: recommended domains, mailbox count, sending capacity,
-            monthly cost estimate, warmup ramp, and a concrete execution checklist. Submit the form and the workspace updates from the server.
+            Add the company, website, location, CTA, pain points, source links, and custom report requirements.
+            MailOutreach turns that brief into a live report draft with findings, custom sections, intent signals,
+            and a 3-email sequence you can refine before sending.
           </p>
 
           <div class="hero-actions">
-            <a class="button button-primary" href="#planner">Create setup plan</a>
-            <a class="button button-ghost" href="#workspace">View live workspace</a>
+            <a class="button button-primary" href="#brief">Create report</a>
+            <a class="button button-ghost" href="#report">See current draft</a>
           </div>
 
           <div class="hero-stats" id="summary-cards">
             <article class="stat-card">
-              <span class="label">Active plans</span>
+              <span class="label">Active reports</span>
+              <strong>0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="label">Ready to send</span>
               <strong>0</strong>
             </article>
             <article class="stat-card">
@@ -72,184 +77,177 @@
               <strong>Loading</strong>
             </article>
             <article class="stat-card">
-              <span class="label">Daily capacity</span>
+              <span class="label">Source coverage</span>
               <strong>0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="label">Portfolio infra cost</span>
-              <strong>$0</strong>
             </article>
           </div>
         </div>
 
         <aside class="hero-panel">
           <div class="panel-heading">
-            <p class="eyebrow">What this actually does</p>
-            <h2>From intake to rollout checklist in one pass.</h2>
+            <p class="eyebrow">What this draft does now</p>
+            <h2>From client brief to report and sequence in one workspace.</h2>
           </div>
           <div class="mini-grid">
             <article>
-              <span class="label">Generates</span>
-              <strong>Domain and mailbox plan</strong>
+              <span class="label">Collects</span>
+              <strong>Company, location, CTA, pain points</strong>
             </article>
             <article>
-              <span class="label">Calculates</span>
-              <strong>Capacity and estimated cost</strong>
+              <span class="label">Reviews</span>
+              <strong>Website plus any source URLs you provide</strong>
             </article>
             <article>
-              <span class="label">Returns</span>
-              <strong>Warmup ramp and checklist</strong>
+              <span class="label">Builds</span>
+              <strong>Fluid client report sections</strong>
             </article>
             <article>
-              <span class="label">Stores</span>
-              <strong>Recent requests in memory</strong>
+              <span class="label">Writes</span>
+              <strong>3-email outreach sequence</strong>
             </article>
           </div>
         </aside>
       </section>
 
-      <section class="planner-layout" id="planner">
+      <section class="planner-layout" id="brief">
         <article class="panel planner-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Planner</p>
-            <h2>Submit an outbound setup request.</h2>
-            <p>Complete the inputs below and the server will generate an infrastructure recommendation immediately.</p>
+            <p class="eyebrow">Client brief</p>
+            <h2>Create a new audit and outreach report.</h2>
+            <p>Keep the reporting fluid by defining both the client context and the exact sections you want included.</p>
           </div>
 
           <form id="setup-form" class="setup-form">
             <div class="form-grid">
               <label>
-                Owner name
-                <input name="ownerName" type="text" value="Jordan Lee" required>
-              </label>
-              <label>
                 Company name
                 <input name="companyName" type="text" value="Signal Peak Labs" required>
               </label>
               <label>
-                Work email
-                <input name="email" type="email" value="jordan@signalpeaklabs.com" required>
+                Website URL
+                <input name="websiteUrl" type="text" value="signalpeaklabs.com" required>
               </label>
               <label>
-                Team type
-                <select name="teamType" required>
-                  <option>Lead gen agency</option>
-                  <option>SaaS sales team</option>
-                  <option>Founder-led outbound</option>
-                  <option>Recruiting team</option>
+                Target location
+                <input name="location" type="text" value="Austin, Texas" required>
+              </label>
+              <label>
+                Audit mode
+                <select name="auditMode" required>
+                  <option>Agency</option>
+                  <option>SEO</option>
+                  <option>Social</option>
+                  <option>Mixed</option>
                 </select>
               </label>
-              <label>
-                Sending platform
-                <select name="platform" required>
-                  <option>Google Workspace</option>
-                  <option>Microsoft 365</option>
-                </select>
+              <label class="field-wide">
+                CTA
+                <input name="cta" type="text" value="book more discovery calls from the homepage" required>
               </label>
-              <label>
-                Contacts per month
-                <input name="contactsPerMonth" type="number" min="1000" step="1000" value="30000" required>
+              <label class="field-wide">
+                Pain points
+                <textarea name="painPoints" rows="4" required>weak homepage CTA
+unclear service positioning
+thin trust proof
+inconsistent local search visibility</textarea>
               </label>
-              <label>
-                Sending days per month
-                <input name="sendingDays" type="number" min="10" max="31" value="22" required>
+              <label class="field-wide">
+                Source URLs to review
+                <textarea name="sourceUrls" rows="4">https://signalpeaklabs.com
+https://www.linkedin.com/company/example</textarea>
               </label>
-              <label>
-                Emails per mailbox per day
-                <input name="dailyPerMailbox" type="number" min="15" max="60" value="35" required>
-              </label>
-              <label>
-                Mailboxes per domain
-                <input name="mailboxesPerDomain" type="number" min="2" max="8" value="4" required>
+              <label class="field-wide">
+                Report requirements
+                <textarea name="reportRequirements" rows="4" required>website structure review
+CTA clarity and conversion friction
+trust proof gaps
+SEO quick wins
+recommended fixes for the report</textarea>
               </label>
               <label class="field-wide">
                 Notes
-                <textarea name="notes" rows="4">Need a stack that can support steady campaign growth without overloading individual inboxes.</textarea>
+                <textarea name="notes" rows="4">This client is an agency prospect. Keep the report practical and easy to skim, with clear proof-backed recommendations.</textarea>
               </label>
             </div>
 
-          <div class="form-actions">
-            <button class="button button-primary" type="submit">Generate live plan</button>
-            <button class="button button-ghost" type="button" id="reset-draft-button">Reset draft</button>
-            <p id="form-status" class="status-text">Ready to submit.</p>
-          </div>
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Generate report and sequence</button>
+              <button class="button button-ghost" type="button" id="reset-draft-button">Reset draft</button>
+              <p id="form-status" class="status-text">Ready to build a report.</p>
+            </div>
           </form>
         </article>
 
-        <article class="panel preview-panel">
+        <article class="panel preview-panel" id="report">
           <div class="panel-heading">
-            <p class="eyebrow">Generated plan</p>
-            <h2>Latest recommended stack.</h2>
+            <p class="eyebrow">Current report</p>
+            <h2>Latest report draft and send-ready sequence.</h2>
           </div>
 
           <div class="results-grid" id="plan-metrics">
             <article class="metric-card">
-              <span class="label">Domains</span>
+              <span class="label">Findings</span>
               <strong>0</strong>
             </article>
             <article class="metric-card">
-              <span class="label">Mailboxes</span>
+              <span class="label">Custom sections</span>
               <strong>0</strong>
             </article>
             <article class="metric-card">
-              <span class="label">Daily capacity</span>
+              <span class="label">Reviewed sources</span>
               <strong>0</strong>
             </article>
             <article class="metric-card">
-              <span class="label">Infra cost</span>
-              <strong>$0</strong>
+              <span class="label">Sequence steps</span>
+              <strong>0</strong>
             </article>
           </div>
 
           <div class="plan-summary" id="plan-summary">
-            <p>Submit a request to see the calculated infrastructure summary.</p>
+            <p>Generate a report to see the executive summary and the current workflow stage.</p>
           </div>
 
           <div class="plan-controls">
             <label>
-              Delivery stage
+              Workflow stage
               <select id="plan-status-select">
-                <option>Planned</option>
-                <option>Purchasing</option>
-                <option>DNS setup</option>
-                <option>Warmup</option>
+                <option>Researching</option>
+                <option>Drafted</option>
+                <option>Reviewing</option>
+                <option>Ready to Send</option>
                 <option>Live</option>
               </select>
             </label>
-            <p id="plan-status-message" class="status-text">Select a saved plan to manage its rollout stage.</p>
+            <p id="plan-status-message" class="status-text">Load or create a report to manage the workflow stage.</p>
           </div>
 
           <div class="form-actions">
-            <button class="button button-ghost" type="button" id="copy-plan-button">Copy plan summary</button>
+            <button class="button button-ghost" type="button" id="copy-plan-button">Copy report + sequence</button>
             <p id="copy-status" class="status-text">Nothing copied yet.</p>
           </div>
 
           <div class="checklist-block">
-            <h3>Operator recommendations</h3>
-            <ul id="recommendations-list" class="stack-list"></ul>
-          </div>
-
-          <div class="checklist-block">
-            <h3>Execution checklist</h3>
+            <h3>Checklist</h3>
             <ul id="checklist-list" class="stack-list"></ul>
           </div>
         </article>
       </section>
 
-      <section class="workspace-layout" id="workspace">
+      <section class="workspace-layout">
         <article class="panel workspace-main">
           <div class="panel-heading">
-            <p class="eyebrow">Workspace</p>
-            <h2>Warmup ramp and operating details.</h2>
+            <p class="eyebrow">Findings and report</p>
+            <h2>Client-specific findings, source review, and custom sections.</h2>
           </div>
 
-          <div id="warmup-grid" class="warmup-grid"></div>
+          <div id="recommendations-list" class="insight-grid"></div>
+          <div id="warmup-grid" class="source-grid"></div>
         </article>
 
-        <article class="panel workspace-side" id="activity">
+        <article class="panel workspace-side">
           <div class="panel-heading">
-            <p class="eyebrow">Recent activity</p>
-            <h2>Saved requests from the server.</h2>
+            <p class="eyebrow">Outreach sequence</p>
+            <h2>Three steps built from the current report.</h2>
           </div>
 
           <div id="recent-requests" class="timeline-list"></div>
@@ -258,12 +256,11 @@
         </article>
       </section>
 
-      <section class="history-layout">
+      <section class="history-layout" id="history">
         <article class="panel history-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Plan history</p>
-            <h2>Recently generated infrastructure plans.</h2>
-            <p>Load any saved plan, update its stage, and check off rollout tasks as the setup moves forward.</p>
+            <p class="eyebrow">Saved reports</p>
+            <h2>Reopen client work without losing the fluid structure.</h2>
           </div>
 
           <div id="plan-history" class="history-list"></div>

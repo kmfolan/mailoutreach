@@ -1,4 +1,4 @@
-const CACHE_NAME = "outbound-forge-v2";
+const CACHE_NAME = "mailoutreach-v3";
 const APP_SHELL = [
   "./",
   "./index.html",

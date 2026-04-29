@@ -1,7 +1,7 @@
 {
-  "name": "Outbound Forge",
-  "short_name": "OutboundForge",
-  "description": "Outbound infrastructure planner MVP with a live setup request flow and generated mailbox plans.",
+  "name": "MailOutreach",
+  "short_name": "MailOutreach",
+  "description": "Protected audit and outreach workspace for building client reports and 3-email sequences.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#09101a",
