@@ -12,12 +12,18 @@ const sequenceList = document.getElementById("recent-requests");
 const activityFeed = document.getElementById("activity-feed");
 const planHistory = document.getElementById("plan-history");
 const autonomousRunsNode = document.getElementById("autonomous-runs");
+const autonomousReview = document.getElementById("autonomous-review");
 const logoutButton = document.getElementById("logout-button");
 const resetDraftButton = document.getElementById("reset-draft-button");
 const copyPlanButton = document.getElementById("copy-plan-button");
 const copyStatus = document.getElementById("copy-status");
 const planStatusSelect = document.getElementById("plan-status-select");
 const planStatusMessage = document.getElementById("plan-status-message");
+const autonomousPrevButton = document.getElementById("autonomous-prev-button");
+const autonomousNextButton = document.getElementById("autonomous-next-button");
+const autonomousSubmitButton = document.getElementById("autonomous-submit-button");
+const autonomousStepButtons = Array.from(document.querySelectorAll("[data-step-nav]"));
+const autonomousPanels = Array.from(document.querySelectorAll("[data-step-panel]"));
 
 const manualDraftKey = "mailoutreach-form-draft";
 const autonomousDraftKey = "mailoutreach-autonomous-draft";
@@ -25,6 +31,7 @@ let latestReport = null;
 let availableStatuses = ["Researching", "Drafted", "Reviewing", "Ready to Send", "Live"];
 let autonomousRuns = [];
 let pollTimer = null;
+let autonomousStep = 1;
 
 async function requestJson(url, options) {
   const response = await fetch(url, options);
@@ -108,6 +115,37 @@ function getAutonomousPayload() {
     reportRequirements: formData.get("reportRequirements")?.toString().trim(),
     notes: formData.get("notes")?.toString().trim() || ""
   };
+}
+
+function updateAutonomousReview() {
+  const payload = getAutonomousPayload();
+  autonomousReview.innerHTML = `
+    <p><strong>Campaign:</strong> ${payload.campaignName || "Not set"}</p>
+    <p><strong>Niche + location:</strong> ${payload.niche || "Not set"} in ${payload.location || "Not set"}</p>
+    <p><strong>CTA:</strong> ${payload.cta || "Not set"}</p>
+    <p><strong>Audit mode:</strong> ${payload.auditMode || "Not set"}</p>
+    <p><strong>Prospect count:</strong> ${payload.targetCount || 0}</p>
+    <p><strong>Platform targets:</strong> ${payload.platformTargets || "Public web only"}</p>
+    <p><strong>Pain points:</strong> ${payload.painPoints || "Not set"}</p>
+    <p><strong>Report requirements:</strong> ${payload.reportRequirements || "Not set"}</p>
+  `;
+}
+
+function setAutonomousStep(nextStep) {
+  autonomousStep = Math.max(1, Math.min(4, nextStep));
+  updateAutonomousReview();
+
+  autonomousStepButtons.forEach(button => {
+    button.classList.toggle("is-active", Number(button.dataset.stepNav) === autonomousStep);
+  });
+
+  autonomousPanels.forEach(panel => {
+    panel.classList.toggle("is-active", Number(panel.dataset.stepPanel) === autonomousStep);
+  });
+
+  autonomousPrevButton.disabled = autonomousStep === 1;
+  autonomousNextButton.hidden = autonomousStep === 4;
+  autonomousSubmitButton.hidden = autonomousStep !== 4;
 }
 
 function syncStatusSelect(status) {
@@ -287,6 +325,7 @@ function renderRuns(items) {
             <div class="stack-list compact-list">
               ${(run.logs || []).slice(0, 2).map(log => `<li>${log.message}</li>`).join("") || "<li>No run logs yet.</li>"}
             </div>
+            ${run.reportIds && run.reportIds.length > 0 ? `<button class="button button-ghost history-load-button" type="button" data-run-report-id="${run.reportIds[0]}">Open newest drafted report</button>` : ""}
           </article>
         `)
         .join("")
@@ -470,6 +509,14 @@ async function handleAutonomousSubmit(event) {
   }
 }
 
+function handleAutonomousNext() {
+  setAutonomousStep(autonomousStep + 1);
+}
+
+function handleAutonomousPrev() {
+  setAutonomousStep(autonomousStep - 1);
+}
+
 function buildExportText() {
   if (!latestReport) {
     return "";
@@ -607,6 +654,23 @@ async function handleHistoryClick(event) {
   }
 }
 
+async function handleRunTrackerClick(event) {
+  const button = event.target.closest("[data-run-report-id]");
+  if (!button) {
+    return;
+  }
+
+  try {
+    await loadReport(button.dataset.runReportId);
+    document.getElementById("report")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    planStatusMessage.textContent = `Loaded ${latestReport.companyName}.`;
+    planStatusMessage.className = "status-text info";
+  } catch (error) {
+    autonomousStatus.textContent = error.message;
+    autonomousStatus.className = "status-text error";
+  }
+}
+
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
@@ -617,15 +681,22 @@ manualForm.addEventListener("submit", handleManualSubmit);
 manualForm.addEventListener("input", () => saveFormDraft(manualForm, manualDraftKey));
 autonomousForm.addEventListener("submit", handleAutonomousSubmit);
 autonomousForm.addEventListener("input", () => saveFormDraft(autonomousForm, autonomousDraftKey));
+autonomousStepButtons.forEach(button => {
+  button.addEventListener("click", () => setAutonomousStep(Number(button.dataset.stepNav)));
+});
+autonomousPrevButton.addEventListener("click", handleAutonomousPrev);
+autonomousNextButton.addEventListener("click", handleAutonomousNext);
 logoutButton.addEventListener("click", handleLogout);
 resetDraftButton.addEventListener("click", handleResetDraft);
 copyPlanButton.addEventListener("click", handleCopyPlan);
 planStatusSelect.addEventListener("change", handleStatusChange);
 checklistList.addEventListener("change", handleChecklistToggle);
 planHistory.addEventListener("click", handleHistoryClick);
+autonomousRunsNode.addEventListener("click", handleRunTrackerClick);
 
 restoreFormDraft(manualForm, manualDraftKey, formStatus, "Restored saved manual brief from this browser.");
 restoreFormDraft(autonomousForm, autonomousDraftKey, autonomousStatus, "Restored saved autonomous campaign from this browser.");
+setAutonomousStep(1);
 loadDashboard().catch(error => {
   formStatus.textContent = `Unable to load dashboard: ${error.message}`;
   formStatus.className = "status-text error";

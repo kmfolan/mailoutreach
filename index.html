@@ -118,63 +118,90 @@
           </div>
 
           <form id="autonomous-form" class="setup-form">
-            <div class="form-grid">
-              <label>
-                Campaign name
-                <input name="campaignName" type="text" value="Florida agencies outreach" required>
-              </label>
-              <label>
-                Niche
-                <input name="niche" type="text" value="digital marketing agency" required>
-              </label>
-              <label>
-                Location
-                <input name="location" type="text" value="Miami, Florida" required>
-              </label>
-              <label>
-                Audit mode
-                <select name="auditMode" required>
-                  <option>Agency</option>
-                  <option>SEO</option>
-                  <option>Social</option>
-                  <option>Mixed</option>
-                </select>
-              </label>
-              <label class="field-wide">
-                CTA
-                <input name="cta" type="text" value="book more strategy calls from the website" required>
-              </label>
-              <label>
-                Prospect count
-                <input name="targetCount" type="number" min="1" max="10" value="3" required>
-              </label>
-              <label>
-                Platform targets
-                <input name="platformTargets" type="text" value="LinkedIn, Facebook, Google Maps">
-              </label>
-              <label class="field-wide">
-                Pain points
-                <textarea name="painPoints" rows="4" required>weak CTA
+            <div class="wizard-steps">
+              <button class="wizard-step is-active" type="button" data-step-nav="1">1. Basics</button>
+              <button class="wizard-step" type="button" data-step-nav="2">2. Offer</button>
+              <button class="wizard-step" type="button" data-step-nav="3">3. Filters</button>
+              <button class="wizard-step" type="button" data-step-nav="4">4. Launch</button>
+            </div>
+
+            <div class="wizard-panel is-active" data-step-panel="1">
+              <div class="form-grid">
+                <label>
+                  Campaign name
+                  <input name="campaignName" type="text" value="Florida agencies outreach" required>
+                </label>
+                <label>
+                  Niche
+                  <input name="niche" type="text" value="digital marketing agency" required>
+                </label>
+                <label>
+                  Location
+                  <input name="location" type="text" value="Miami, Florida" required>
+                </label>
+                <label>
+                  Audit mode
+                  <select name="auditMode" required>
+                    <option>Agency</option>
+                    <option>SEO</option>
+                    <option>Social</option>
+                    <option>Mixed</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="wizard-panel" data-step-panel="2">
+              <div class="form-grid">
+                <label class="field-wide">
+                  CTA
+                  <input name="cta" type="text" value="book more strategy calls from the website" required>
+                </label>
+                <label class="field-wide">
+                  Pain points
+                  <textarea name="painPoints" rows="4" required>weak CTA
 unclear offer
 thin trust proof
 weak local visibility</textarea>
-              </label>
-              <label class="field-wide">
-                Report requirements
-                <textarea name="reportRequirements" rows="4" required>website structure review
+                </label>
+                <label class="field-wide">
+                  Report requirements
+                  <textarea name="reportRequirements" rows="4" required>website structure review
 CTA clarity
 proof gaps
 SEO quick wins
 recommended fixes</textarea>
-              </label>
-              <label class="field-wide">
-                Notes
-                <textarea name="notes" rows="4">Prioritize service businesses that look established but still have weak conversion structure.</textarea>
-              </label>
+                </label>
+              </div>
             </div>
 
-            <div class="form-actions">
-              <button class="button button-primary" type="submit">Start autonomous run</button>
+            <div class="wizard-panel" data-step-panel="3">
+              <div class="form-grid">
+                <label>
+                  Prospect count
+                  <input name="targetCount" type="number" min="1" max="10" value="3" required>
+                </label>
+                <label>
+                  Platform targets
+                  <input name="platformTargets" type="text" value="LinkedIn, Facebook, Google Maps">
+                </label>
+                <label class="field-wide">
+                  Notes
+                  <textarea name="notes" rows="4">Prioritize service businesses that look established but still have weak conversion structure.</textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="wizard-panel" data-step-panel="4">
+              <div class="plan-summary" id="autonomous-review">
+                <p>Review your campaign details before starting the run.</p>
+              </div>
+            </div>
+
+            <div class="form-actions wizard-actions">
+              <button class="button button-ghost" type="button" id="autonomous-prev-button">Back</button>
+              <button class="button button-ghost" type="button" id="autonomous-next-button">Next</button>
+              <button class="button button-primary" type="submit" id="autonomous-submit-button">Start autonomous run</button>
               <p id="autonomous-status" class="status-text">Ready to discover prospects.</p>
             </div>
           </form>
@@ -310,6 +337,13 @@ recommended fixes for the report</textarea>
           <div class="checklist-block">
             <h3>Checklist</h3>
             <ul id="checklist-list" class="stack-list"></ul>
+          </div>
+
+          <div class="checklist-block">
+            <h3>Delivery status</h3>
+            <div class="empty-state" id="delivery-status-card">
+              No sending mailbox is connected yet. This app drafts reports and sequences, but it is not sending email or collecting replies yet.
+            </div>
           </div>
         </article>
       </section>

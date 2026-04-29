@@ -272,6 +272,41 @@ li {
   gap: 18px;
 }
 
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wizard-step {
+  border: 1px solid rgba(152, 182, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 12px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wizard-step.is-active {
+  color: var(--text);
+  border-color: rgba(142, 227, 196, 0.3);
+  background: rgba(142, 227, 196, 0.1);
+}
+
+.wizard-panel {
+  display: none;
+}
+
+.wizard-panel.is-active {
+  display: block;
+}
+
+.wizard-actions {
+  align-items: center;
+}
+
 .hero-text {
   max-width: 62ch;
 }
@@ -639,6 +674,10 @@ textarea {
   .topbar-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .wizard-steps {
+    grid-template-columns: 1fr 1fr;
   }
 
   h1,
