@@ -8,6 +8,21 @@ const dataDir = path.resolve(__dirname, "..", "data");
 const dbPath = path.join(dataDir, "db.json");
 
 const reportStatuses = ["Researching", "Drafted", "Reviewing", "Ready to Send", "Live"];
+const runStatuses = ["Queued", "Running", "Completed", "Completed with Errors", "Failed"];
+const blockedDomains = [
+  "linkedin.com",
+  "facebook.com",
+  "instagram.com",
+  "tiktok.com",
+  "x.com",
+  "twitter.com",
+  "duckduckgo.com",
+  "youtube.com",
+  "yelp.com",
+  "crunchbase.com",
+  "wikipedia.org",
+  "mapquest.com"
+];
 
 const baseDb = {
   profile: {
@@ -16,8 +31,11 @@ const baseDb = {
   },
   requests: [],
   reports: [],
+  runs: [],
   activity: []
 };
+
+const activeRuns = new Map();
 
 function ensureDataFile() {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -40,6 +58,7 @@ function loadDb() {
       ...parsed,
       requests: Array.isArray(parsed.requests) ? parsed.requests : [],
       reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+      runs: Array.isArray(parsed.runs) ? parsed.runs : [],
       activity: Array.isArray(parsed.activity) ? parsed.activity : []
     };
   } catch {
@@ -81,6 +100,38 @@ function normalizeUrl(value) {
   return `https://${trimmed}`;
 }
 
+function rootUrl(url) {
+  try {
+    const parsed = new URL(normalizeUrl(url));
+    return `${parsed.protocol}//${parsed.host}/`;
+  } catch {
+    return normalizeUrl(url);
+  }
+}
+
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isBlockedDomain(url) {
+  const domain = extractDomain(url);
+  return blockedDomains.some(blocked => domain === blocked || domain.endsWith(`.${blocked}`));
+}
+
+function titleCase(value) {
+  return String(value || "")
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function extractMatch(text, regex) {
   const match = text.match(regex);
   return match ? match[1].replace(/\s+/g, " ").trim() : "";
@@ -88,6 +139,38 @@ function extractMatch(text, regex) {
 
 function stripTags(text) {
   return text.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ");
+}
+
+function parseCompanyNameFromUrl(url) {
+  const domain = extractDomain(url);
+  if (!domain) {
+    return "Unknown Company";
+  }
+  const core = domain.split(".")[0];
+  return titleCase(core);
+}
+
+function looksInformationalTitle(value) {
+  const lower = String(value || "").toLowerCase();
+  return ["how much", "best ", "top ", "guide", "cost", "tips", "what is", "near me", "vs "].some(token => lower.includes(token));
+}
+
+async function fetchText(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "MailOutreach-AuditBot/1.0"
+      },
+      signal: controller.signal
+    });
+    const text = await response.text();
+    return { ok: response.ok, status: response.status, text };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchPageSnapshot(url) {
@@ -106,19 +189,9 @@ async function fetchPageSnapshot(url) {
     };
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "MailOutreach-AuditBot/1.0"
-      },
-      signal: controller.signal
-    });
-
-    const html = await response.text();
-    const limitedHtml = html.slice(0, 120000);
+    const response = await fetchText(url);
+    const limitedHtml = response.text.slice(0, 120000);
     const cleanedBody = stripTags(limitedHtml).replace(/\s+/g, " ").trim();
     const title = extractMatch(limitedHtml, /<title[^>]*>([\s\S]*?)<\/title>/i);
     const description = extractMatch(limitedHtml, /<meta[^>]+name=["']description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i);
@@ -155,8 +228,6 @@ async function fetchPageSnapshot(url) {
       trustSignals: [],
       notes: [`Could not fetch source: ${error.name === "AbortError" ? "request timed out" : error.message}`]
     };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -368,6 +439,19 @@ function normalizeReport(report) {
   };
 }
 
+function normalizeRun(run) {
+  return {
+    ...run,
+    status: runStatuses.includes(run.status) ? run.status : "Queued",
+    discoveredProspects: Array.isArray(run.discoveredProspects) ? run.discoveredProspects : [],
+    reportIds: Array.isArray(run.reportIds) ? run.reportIds : [],
+    logs: Array.isArray(run.logs) ? run.logs : [],
+    errors: Array.isArray(run.errors) ? run.errors : [],
+    completedCount: run.completedCount || 0,
+    targetCount: run.targetCount || 0
+  };
+}
+
 function logActivity(title, body, createdAt = new Date().toISOString()) {
   db.activity.unshift({
     id: createId("activity"),
@@ -385,6 +469,10 @@ function findRequestByReport(reportId) {
   return db.requests.find(request => request.reportId === reportId) || null;
 }
 
+function findRun(runId) {
+  return db.runs.find(run => run.id === runId) || null;
+}
+
 function syncStoredRecords() {
   db.reports = db.reports.map(normalizeReport);
   db.requests = db.requests.map(request => ({
@@ -392,24 +480,27 @@ function syncStoredRecords() {
     reportId: request.reportId || null,
     status: request.status || "Drafted"
   }));
+  db.runs = db.runs.map(normalizeRun);
   persistDb();
 }
 
 syncStoredRecords();
 
-async function buildReportRecord(payload) {
-  const input = {
-    companyName: payload.companyName,
-    websiteUrl: normalizeUrl(payload.websiteUrl),
-    location: payload.location,
+function buildReportInput(payload, overrides = {}) {
+  return {
+    companyName: overrides.companyName || payload.companyName,
+    websiteUrl: normalizeUrl(overrides.websiteUrl || payload.websiteUrl),
+    location: overrides.location || payload.location,
     cta: payload.cta,
     auditMode: payload.auditMode,
-    painPoints: toList(payload.painPoints),
-    reportRequirements: toList(payload.reportRequirements),
-    sourceUrls: toList(payload.sourceUrls).map(normalizeUrl),
+    painPoints: Array.isArray(payload.painPoints) ? payload.painPoints : toList(payload.painPoints),
+    reportRequirements: Array.isArray(payload.reportRequirements) ? payload.reportRequirements : toList(payload.reportRequirements),
+    sourceUrls: Array.isArray(payload.sourceUrls) ? payload.sourceUrls.map(normalizeUrl) : toList(payload.sourceUrls).map(normalizeUrl),
     notes: payload.notes || ""
   };
+}
 
+async function buildReportRecordFromInput(input, metadata = {}) {
   const websiteSnapshot = await fetchPageSnapshot(input.websiteUrl);
   const sourceSnapshots = [];
   for (const url of input.sourceUrls.slice(0, 4)) {
@@ -441,14 +532,21 @@ async function buildReportRecord(payload) {
     findings,
     customSections,
     outreachSequence,
-    status: "Drafted",
-    checklist: buildDefaultChecklist(input.auditMode)
+    status: metadata.initialStatus || "Drafted",
+    checklist: buildDefaultChecklist(input.auditMode),
+    autonomousRunId: metadata.autonomousRunId || null,
+    discoveredFromQuery: metadata.discoveredFromQuery || null
   });
+}
+
+async function buildReportRecord(payload) {
+  return buildReportRecordFromInput(buildReportInput(payload));
 }
 
 function summarizeDashboard() {
   const latestReport = db.reports[0] || null;
   const readyToSend = db.reports.filter(report => report.status === "Ready to Send" || report.status === "Live").length;
+  const activeRunsCount = db.runs.filter(run => run.status === "Queued" || run.status === "Running").length;
 
   return latestReport
     ? {
@@ -456,15 +554,262 @@ function summarizeDashboard() {
         readyToSend,
         latestCompany: latestReport.companyName,
         latestLocation: latestReport.location,
-        sourceCoverage: 1 + (latestReport.sourceSnapshots?.length || 0)
+        sourceCoverage: 1 + (latestReport.sourceSnapshots?.length || 0),
+        activeRuns: activeRunsCount
       }
     : {
         activeReports: 0,
         readyToSend: 0,
         latestCompany: null,
         latestLocation: null,
-        sourceCoverage: 0
+        sourceCoverage: 0,
+        activeRuns: activeRunsCount
       };
+}
+
+function appendRunLog(run, message) {
+  run.logs.unshift({
+    id: createId("log"),
+    createdAt: new Date().toISOString(),
+    message
+  });
+  run.logs = run.logs.slice(0, 30);
+}
+
+function buildSearchQueries(run) {
+  const base = `${run.niche} ${run.location}`;
+  return [
+    `${base} official website`,
+    `${base} services`,
+    `${base} local business`,
+    `${base} contact`
+  ].slice(0, 4);
+}
+
+function extractRssItems(xml) {
+  const items = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1];
+    items.push({
+      title: extractMatch(block, /<title>([\s\S]*?)<\/title>/i),
+      link: extractMatch(block, /<link>([\s\S]*?)<\/link>/i),
+      description: extractMatch(block, /<description>([\s\S]*?)<\/description>/i)
+    });
+  }
+
+  return items;
+}
+
+async function discoverProspects(query, targetCount) {
+  const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`;
+  const response = await fetchText(url);
+  if (!response.ok) {
+    throw new Error(`Search provider returned status ${response.status}`);
+  }
+
+  const items = extractRssItems(response.text)
+    .map(item => ({
+      ...item,
+      websiteUrl: rootUrl(item.link),
+      domain: extractDomain(item.link)
+    }))
+    .filter(item => item.websiteUrl && item.domain && !isBlockedDomain(item.websiteUrl))
+    .slice(0, Math.max(targetCount * 4, targetCount));
+
+  return items.map(item => ({
+    query,
+    websiteUrl: item.websiteUrl,
+    companyName:
+      item.title && !looksInformationalTitle(item.title) && item.title.split(" ").length <= 8
+        ? item.title.split("|")[0].split("-")[0].trim()
+        : parseCompanyNameFromUrl(item.websiteUrl),
+    domain: item.domain,
+    searchTitle: item.title,
+    searchDescription: item.description
+  }));
+}
+
+async function qualifyProspect(prospect, run) {
+  const snapshot = await fetchPageSnapshot(prospect.websiteUrl);
+  const haystack = `${prospect.searchTitle || ""} ${prospect.searchDescription || ""} ${snapshot.title} ${snapshot.description} ${snapshot.h1} ${snapshot.bodySample}`.toLowerCase();
+  const nicheTokens = run.niche
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(token => token.length > 3 && !["official", "website", "local", "company", "services"].includes(token));
+  const locationTokens = run.location
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .filter(token => token.length > 2);
+
+  const nicheMatch = nicheTokens.length === 0 || nicheTokens.some(token => haystack.includes(token));
+  const locationMatch = locationTokens.length === 0 || locationTokens.some(token => haystack.includes(token));
+  const informational = looksInformationalTitle(prospect.searchTitle) || /blog|article|news/i.test(prospect.searchDescription || "");
+
+  return {
+    accepted: snapshot.reachable && nicheMatch && !informational && (locationMatch || Boolean(prospect.searchDescription || prospect.searchTitle)),
+    snapshot
+  };
+}
+
+async function enrichProspectSources(companyName, domain, location, platformTargets) {
+  const queries = [];
+  const lowerTargets = (platformTargets || []).map(target => target.toLowerCase());
+
+  if (lowerTargets.includes("linkedin")) {
+    queries.push(`site:linkedin.com/company "${companyName}" "${location}"`);
+  }
+  if (lowerTargets.includes("facebook")) {
+    queries.push(`site:facebook.com "${companyName}" "${location}"`);
+  }
+  if (lowerTargets.includes("google maps")) {
+    queries.push(`"${companyName}" "${location}" Google Maps`);
+  }
+
+  const found = [];
+
+  for (const query of queries.slice(0, 3)) {
+    try {
+      const results = await discoverProspects(query, 2);
+      for (const result of results) {
+        if (!found.includes(result.websiteUrl) && result.domain !== domain) {
+          found.push(result.websiteUrl);
+        }
+      }
+    } catch {
+      // Skip enrichment failure without failing the entire run.
+    }
+  }
+
+  return found.slice(0, 3);
+}
+
+async function processAutonomousRun(runId) {
+  const run = findRun(runId);
+  if (!run || activeRuns.has(runId)) {
+    return;
+  }
+
+  activeRuns.set(runId, true);
+  run.status = "Running";
+  run.startedAt = new Date().toISOString();
+  appendRunLog(run, "Autonomous discovery started.");
+  persistDb();
+
+  try {
+    const queries = buildSearchQueries(run);
+    const seenDomains = new Set();
+    const prospects = [];
+
+    for (const query of queries) {
+      if (prospects.length >= run.targetCount) {
+        break;
+      }
+
+      appendRunLog(run, `Searching public web results for "${query}".`);
+      persistDb();
+
+      try {
+        const results = await discoverProspects(query, run.targetCount);
+        for (const result of results) {
+          if (prospects.length >= run.targetCount) {
+            break;
+          }
+
+          if (!result.domain || seenDomains.has(result.domain)) {
+            continue;
+          }
+
+          const qualified = await qualifyProspect(result, run);
+          if (!qualified.accepted) {
+            continue;
+          }
+
+          seenDomains.add(result.domain);
+          prospects.push(result);
+        }
+      } catch (error) {
+        run.errors.push(`${query}: ${error.message}`);
+        appendRunLog(run, `Search failed for "${query}".`);
+      }
+    }
+
+    if (prospects.length === 0) {
+      throw new Error("No public prospects were discovered from the current search brief.");
+    }
+
+    for (const prospect of prospects.slice(0, run.targetCount)) {
+      appendRunLog(run, `Building report draft for ${prospect.companyName}.`);
+
+      const enrichedSourceUrls = await enrichProspectSources(
+        prospect.companyName,
+        prospect.domain,
+        run.location,
+        run.platformTargets
+      );
+
+      const reportInput = buildReportInput({
+        companyName: prospect.companyName,
+        websiteUrl: prospect.websiteUrl,
+        location: run.location,
+        cta: run.cta,
+        auditMode: run.auditMode,
+        painPoints: run.painPoints,
+        reportRequirements: run.reportRequirements,
+        sourceUrls: enrichedSourceUrls,
+        notes: run.notes
+      });
+
+      const report = await buildReportRecordFromInput(reportInput, {
+        initialStatus: "Researching",
+        autonomousRunId: run.id,
+        discoveredFromQuery: prospect.query
+      });
+
+      db.reports.unshift(report);
+      db.requests.unshift({
+        id: createId("request"),
+        reportId: report.id,
+        createdAt: report.createdAt,
+        companyName: report.companyName,
+        websiteUrl: report.websiteUrl,
+        location: report.location,
+        status: report.status
+      });
+
+      run.reportIds.unshift(report.id);
+      run.discoveredProspects.unshift({
+        id: createId("prospect"),
+        companyName: report.companyName,
+        websiteUrl: report.websiteUrl,
+        status: report.status,
+        reportId: report.id,
+        discoveredFromQuery: prospect.query
+      });
+      run.completedCount += 1;
+
+      logActivity(
+        "Autonomous report drafted",
+        `${report.companyName} was discovered and converted into a draft outreach report.`
+      );
+      persistDb();
+    }
+
+    run.completedAt = new Date().toISOString();
+    run.status = run.errors.length > 0 ? "Completed with Errors" : "Completed";
+    appendRunLog(run, `Autonomous run finished with ${run.completedCount} drafted prospect report${run.completedCount === 1 ? "" : "s"}.`);
+    persistDb();
+  } catch (error) {
+    run.completedAt = new Date().toISOString();
+    run.status = "Failed";
+    run.errors.push(error.message);
+    appendRunLog(run, `Run failed: ${error.message}`);
+    persistDb();
+  } finally {
+    activeRuns.delete(runId);
+  }
 }
 
 export function getHealth() {
@@ -483,14 +828,20 @@ export function getDashboard() {
     summary: summarizeDashboard(),
     latestReport,
     recentRequests: db.requests.slice(0, 8),
-    activity: db.activity.slice(0, 10),
+    activity: db.activity.slice(0, 12),
     reportHistory: db.reports.slice(0, 12),
-    availableStatuses: reportStatuses
+    autonomousRuns: db.runs.slice(0, 8),
+    availableStatuses: reportStatuses,
+    runStatuses
   };
 }
 
 export function getPlanById(reportId) {
   return findReport(reportId);
+}
+
+export function getAutonomousRunById(runId) {
+  return findRun(runId);
 }
 
 export async function submitSetupRequest(payload) {
@@ -511,6 +862,42 @@ export async function submitSetupRequest(payload) {
   logActivity("3-email sequence generated", `${formatDate(new Date(report.createdAt))}: outreach copy prepared for ${report.companyName}.`, report.createdAt);
   persistDb();
   return { request, plan: report };
+}
+
+export function createAutonomousRun(payload) {
+  const run = normalizeRun({
+    id: createId("run"),
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    campaignName: payload.campaignName,
+    niche: payload.niche,
+    location: payload.location,
+    cta: payload.cta,
+    auditMode: payload.auditMode,
+    painPoints: toList(payload.painPoints),
+    reportRequirements: toList(payload.reportRequirements),
+    platformTargets: toList(payload.platformTargets),
+    notes: payload.notes || "",
+    targetCount: Math.max(1, Math.min(10, Number(payload.targetCount) || 3)),
+    completedCount: 0,
+    status: "Queued",
+    discoveredProspects: [],
+    reportIds: [],
+    logs: [],
+    errors: []
+  });
+
+  appendRunLog(run, "Autonomous run queued.");
+  db.runs.unshift(run);
+  logActivity("Autonomous run queued", `${run.campaignName} is queued to discover ${run.targetCount} prospects in ${run.location}.`, run.createdAt);
+  persistDb();
+
+  setTimeout(() => {
+    processAutonomousRun(run.id);
+  }, 0);
+
+  return run;
 }
 
 export function updatePlanStatus(reportId, nextStatus) {

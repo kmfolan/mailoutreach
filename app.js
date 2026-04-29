@@ -1,5 +1,7 @@
-const form = document.getElementById("setup-form");
+const manualForm = document.getElementById("setup-form");
+const autonomousForm = document.getElementById("autonomous-form");
 const formStatus = document.getElementById("form-status");
+const autonomousStatus = document.getElementById("autonomous-status");
 const summaryCards = document.getElementById("summary-cards");
 const planMetrics = document.getElementById("plan-metrics");
 const planSummary = document.getElementById("plan-summary");
@@ -9,6 +11,7 @@ const sourceGrid = document.getElementById("warmup-grid");
 const sequenceList = document.getElementById("recent-requests");
 const activityFeed = document.getElementById("activity-feed");
 const planHistory = document.getElementById("plan-history");
+const autonomousRunsNode = document.getElementById("autonomous-runs");
 const logoutButton = document.getElementById("logout-button");
 const resetDraftButton = document.getElementById("reset-draft-button");
 const copyPlanButton = document.getElementById("copy-plan-button");
@@ -16,9 +19,12 @@ const copyStatus = document.getElementById("copy-status");
 const planStatusSelect = document.getElementById("plan-status-select");
 const planStatusMessage = document.getElementById("plan-status-message");
 
-const formDraftKey = "mailoutreach-form-draft";
+const manualDraftKey = "mailoutreach-form-draft";
+const autonomousDraftKey = "mailoutreach-autonomous-draft";
 let latestReport = null;
 let availableStatuses = ["Researching", "Drafted", "Reviewing", "Ready to Send", "Live"];
+let autonomousRuns = [];
+let pollTimer = null;
 
 async function requestJson(url, options) {
   const response = await fetch(url, options);
@@ -36,8 +42,45 @@ async function requestJson(url, options) {
   return data;
 }
 
-function getFormPayload() {
+function readDraft(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveFormDraft(form, key) {
   const formData = new FormData(form);
+  const payload = {};
+  for (const [name, value] of formData.entries()) {
+    payload[name] = value.toString();
+  }
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function restoreFormDraft(form, key, messageNode, message) {
+  const draft = readDraft(key);
+  if (!draft) {
+    return;
+  }
+
+  for (const [fieldName, value] of Object.entries(draft)) {
+    const field = form.elements.namedItem(fieldName);
+    if (field && value !== undefined && value !== null) {
+      field.value = String(value);
+    }
+  }
+
+  if (messageNode) {
+    messageNode.textContent = message;
+    messageNode.className = "status-text info";
+  }
+}
+
+function getManualPayload() {
+  const formData = new FormData(manualForm);
   return {
     companyName: formData.get("companyName")?.toString().trim(),
     websiteUrl: formData.get("websiteUrl")?.toString().trim(),
@@ -51,34 +94,20 @@ function getFormPayload() {
   };
 }
 
-function readDraft() {
-  try {
-    const raw = localStorage.getItem(formDraftKey);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveDraft() {
-  localStorage.setItem(formDraftKey, JSON.stringify(getFormPayload()));
-}
-
-function restoreDraft() {
-  const draft = readDraft();
-  if (!draft) {
-    return;
-  }
-
-  for (const [key, value] of Object.entries(draft)) {
-    const field = form.elements.namedItem(key);
-    if (field && value !== undefined && value !== null) {
-      field.value = String(value);
-    }
-  }
-
-  formStatus.textContent = "Restored saved draft from this browser.";
-  formStatus.className = "status-text info";
+function getAutonomousPayload() {
+  const formData = new FormData(autonomousForm);
+  return {
+    campaignName: formData.get("campaignName")?.toString().trim(),
+    niche: formData.get("niche")?.toString().trim(),
+    location: formData.get("location")?.toString().trim(),
+    cta: formData.get("cta")?.toString().trim(),
+    auditMode: formData.get("auditMode")?.toString().trim(),
+    targetCount: Number(formData.get("targetCount")),
+    platformTargets: formData.get("platformTargets")?.toString().trim(),
+    painPoints: formData.get("painPoints")?.toString().trim(),
+    reportRequirements: formData.get("reportRequirements")?.toString().trim(),
+    notes: formData.get("notes")?.toString().trim() || ""
+  };
 }
 
 function syncStatusSelect(status) {
@@ -95,8 +124,8 @@ function renderSummary(summary) {
       <strong>${summary.activeReports || 0}</strong>
     </article>
     <article class="stat-card">
-      <span class="label">Ready to send</span>
-      <strong>${summary.readyToSend || 0}</strong>
+      <span class="label">Active runs</span>
+      <strong>${summary.activeRuns || 0}</strong>
     </article>
     <article class="stat-card">
       <span class="label">Latest company</span>
@@ -169,7 +198,7 @@ function renderFindings(report) {
     : `
       <article class="insight-card insight-card-wide">
         <strong>Intent signals</strong>
-        <p>No strong public intent signal was detected from the provided source set.</p>
+        <p>No strong public intent signal was detected from the current source set.</p>
       </article>
     `;
 
@@ -221,7 +250,7 @@ function renderActivity(items) {
           </article>
         `)
         .join("")
-    : `<article class="empty-state">No activity yet. Generate a report to populate this feed.</article>`;
+    : `<article class="empty-state">No activity yet. Generate a report or start an autonomous run.</article>`;
 }
 
 function renderHistory(items) {
@@ -241,6 +270,27 @@ function renderHistory(items) {
         `)
         .join("")
     : `<article class="empty-state">Saved reports will appear here.</article>`;
+}
+
+function renderRuns(items) {
+  autonomousRunsNode.innerHTML = items.length > 0
+    ? items
+        .map(run => `
+          <article class="history-card">
+            <div class="history-card-top">
+              <strong>${run.campaignName}</strong>
+              <span class="status-pill status-${run.status.toLowerCase().replace(/[^a-z0-9]+/g, "-")}">${run.status}</span>
+            </div>
+            <p>${run.niche} in ${run.location}</p>
+            <p>${run.completedCount || 0} / ${run.targetCount || 0} drafted prospects</p>
+            <p>${(run.platformTargets || []).join(", ") || "Public web only"}</p>
+            <div class="stack-list compact-list">
+              ${(run.logs || []).slice(0, 2).map(log => `<li>${log.message}</li>`).join("") || "<li>No run logs yet.</li>"}
+            </div>
+          </article>
+        `)
+        .join("")
+    : `<article class="empty-state">Autonomous runs will appear here after the first queued campaign.</article>`;
 }
 
 function renderReport(report) {
@@ -293,6 +343,7 @@ function renderReport(report) {
     <p>${report.executiveSummary}</p>
     <p><strong>CTA:</strong> ${report.cta}</p>
     <p><strong>Pain points:</strong> ${(report.painPoints || []).join(", ") || "None listed"}</p>
+    ${report.discoveredFromQuery ? `<p><strong>Discovered from:</strong> ${report.discoveredFromQuery}</p>` : ""}
     <div class="progress-track" aria-hidden="true">
       <span class="progress-bar" style="width:${report.progressPercent || 0}%"></span>
     </div>
@@ -311,14 +362,43 @@ async function loadReport(reportId) {
   renderReport(response.plan);
 }
 
-async function loadDashboard() {
+function schedulePolling() {
+  clearTimeout(pollTimer);
+  const hasActiveRun = autonomousRuns.some(run => run.status === "Queued" || run.status === "Running");
+  if (!hasActiveRun) {
+    return;
+  }
+
+  pollTimer = setTimeout(async () => {
+    try {
+      await loadDashboard(false);
+    } catch {
+      // Ignore transient polling failures.
+    } finally {
+      schedulePolling();
+    }
+  }, 5000);
+}
+
+async function loadDashboard(updateStatusMessages = false) {
   await requestJson("/api/auth/session");
   const dashboard = await requestJson("/api/dashboard");
   availableStatuses = dashboard.availableStatuses || availableStatuses;
+  autonomousRuns = dashboard.autonomousRuns || [];
   renderSummary(dashboard.summary);
   renderReport(dashboard.latestReport);
   renderActivity(dashboard.activity);
   renderHistory(dashboard.reportHistory || []);
+  renderRuns(autonomousRuns);
+  schedulePolling();
+
+  if (updateStatusMessages && autonomousRuns.length > 0) {
+    const activeRun = autonomousRuns.find(run => run.status === "Queued" || run.status === "Running");
+    if (activeRun) {
+      autonomousStatus.textContent = `${activeRun.campaignName} is ${activeRun.status.toLowerCase()}... ${activeRun.completedCount || 0}/${activeRun.targetCount || 0} drafted.`;
+      autonomousStatus.className = "status-text info";
+    }
+  }
 }
 
 async function refreshDashboardAndKeepReport(reportId) {
@@ -326,12 +406,15 @@ async function refreshDashboardAndKeepReport(reportId) {
   if (reportId) {
     await loadReport(reportId);
     const dashboard = await requestJson("/api/dashboard");
+    autonomousRuns = dashboard.autonomousRuns || [];
     renderActivity(dashboard.activity);
     renderHistory(dashboard.reportHistory || []);
+    renderRuns(autonomousRuns);
+    schedulePolling();
   }
 }
 
-async function handleSubmit(event) {
+async function handleManualSubmit(event) {
   event.preventDefault();
   formStatus.textContent = "Generating report and outreach sequence...";
   formStatus.className = "status-text";
@@ -342,22 +425,48 @@ async function handleSubmit(event) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(getFormPayload())
+      body: JSON.stringify(getManualPayload())
     });
 
-    saveDraft();
+    saveFormDraft(manualForm, manualDraftKey);
     formStatus.textContent = "Report draft created and sequence generated.";
     formStatus.className = "status-text success";
     await loadDashboard();
     if (result.plan?.id) {
       await loadReport(result.plan.id);
       const dashboard = await requestJson("/api/dashboard");
+      autonomousRuns = dashboard.autonomousRuns || [];
       renderActivity(dashboard.activity);
       renderHistory(dashboard.reportHistory || []);
+      renderRuns(autonomousRuns);
     }
   } catch (error) {
     formStatus.textContent = error.message;
     formStatus.className = "status-text error";
+  }
+}
+
+async function handleAutonomousSubmit(event) {
+  event.preventDefault();
+  autonomousStatus.textContent = "Starting autonomous discovery run...";
+  autonomousStatus.className = "status-text";
+
+  try {
+    await requestJson("/api/autonomous-runs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(getAutonomousPayload())
+    });
+
+    saveFormDraft(autonomousForm, autonomousDraftKey);
+    autonomousStatus.textContent = "Autonomous run queued. Polling for discovered prospects now.";
+    autonomousStatus.className = "status-text success";
+    await loadDashboard(true);
+  } catch (error) {
+    autonomousStatus.textContent = error.message;
+    autonomousStatus.className = "status-text error";
   }
 }
 
@@ -374,6 +483,7 @@ function buildExportText() {
     `CTA: ${latestReport.cta}`,
     `Audit mode: ${latestReport.auditMode}`,
     `Status: ${latestReport.status}`,
+    latestReport.discoveredFromQuery ? `Discovered from: ${latestReport.discoveredFromQuery}` : "",
     "",
     "Executive summary:",
     latestReport.executiveSummary,
@@ -386,7 +496,7 @@ function buildExportText() {
     "",
     "3-email sequence:",
     ...(latestReport.outreachSequence || []).map(item => `Email ${item.step} - ${item.subject}\n${item.body}`)
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 async function handleCopyPlan() {
@@ -407,8 +517,8 @@ async function handleCopyPlan() {
 }
 
 function handleResetDraft() {
-  localStorage.removeItem(formDraftKey);
-  form.reset();
+  localStorage.removeItem(manualDraftKey);
+  manualForm.reset();
   copyStatus.textContent = "Nothing copied yet.";
   copyStatus.className = "status-text";
   formStatus.textContent = "Draft cleared. Default values restored.";
@@ -486,7 +596,9 @@ async function handleHistoryClick(event) {
   try {
     await loadReport(button.dataset.planId);
     const dashboard = await requestJson("/api/dashboard");
+    autonomousRuns = dashboard.autonomousRuns || [];
     renderHistory(dashboard.reportHistory || []);
+    renderRuns(autonomousRuns);
     planStatusMessage.textContent = `Loaded ${latestReport.companyName}.`;
     planStatusMessage.className = "status-text info";
   } catch (error) {
@@ -501,8 +613,10 @@ function registerServiceWorker() {
   }
 }
 
-form.addEventListener("submit", handleSubmit);
-form.addEventListener("input", saveDraft);
+manualForm.addEventListener("submit", handleManualSubmit);
+manualForm.addEventListener("input", () => saveFormDraft(manualForm, manualDraftKey));
+autonomousForm.addEventListener("submit", handleAutonomousSubmit);
+autonomousForm.addEventListener("input", () => saveFormDraft(autonomousForm, autonomousDraftKey));
 logoutButton.addEventListener("click", handleLogout);
 resetDraftButton.addEventListener("click", handleResetDraft);
 copyPlanButton.addEventListener("click", handleCopyPlan);
@@ -510,7 +624,8 @@ planStatusSelect.addEventListener("change", handleStatusChange);
 checklistList.addEventListener("change", handleChecklistToggle);
 planHistory.addEventListener("click", handleHistoryClick);
 
-restoreDraft();
+restoreFormDraft(manualForm, manualDraftKey, formStatus, "Restored saved manual brief from this browser.");
+restoreFormDraft(autonomousForm, autonomousDraftKey, autonomousStatus, "Restored saved autonomous campaign from this browser.");
 loadDashboard().catch(error => {
   formStatus.textContent = `Unable to load dashboard: ${error.message}`;
   formStatus.className = "status-text error";

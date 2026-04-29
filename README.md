@@ -1,25 +1,34 @@
 # MailOutreach
 
-MailOutreach is a protected audit-and-outreach MVP. It takes a target company, website, location, CTA, pain points, and custom report requirements, then turns that brief into a saved report draft plus a 3-email outreach sequence.
+MailOutreach is a protected outreach-research MVP with two workflows:
+
+- manual report drafting from a specific company and website
+- autonomous prospect discovery by niche and location
+
+It can discover public business websites from search results, audit the site, build a fluid client report, and draft a 3-email outreach sequence.
 
 ## What Works
 
 - authenticated access to the app and API
 - session cookies with server-side session tracking
 - rate-limited login and baseline security headers
-- client brief submission from the browser
-- quick website snapshot fetching for the main URL and optional source URLs
-- generated findings, intent-style signals, custom report sections, and a 3-email sequence
+- manual client brief submission from the browser
+- autonomous search runs by niche, location, CTA, and report requirements
+- public search-based prospect discovery with source filtering and qualification
+- quick website snapshot fetching for the main URL and optional enriched source URLs
+- generated findings, custom report sections, intent-style signals, and a 3-email sequence
 - fluid report structure driven by each client's own report requirements
 - saved report history in the dashboard instead of only the latest result
+- queued and completed autonomous run tracking
 - workflow status management for saved reports
 - checklist completion tracking for review and send-readiness
-- browser draft saving for report inputs
+- browser draft saving for both manual and autonomous forms
 - one-click copy/export of the current report and sequence
 
 ## Current Limits
 
-- this is still a quick-scan engine, not a full scraping platform for LinkedIn, Facebook, or Google Maps
+- autonomous discovery currently relies on public search and website access, not private platform APIs
+- it does not yet directly scrape authenticated LinkedIn, Facebook, or Google Maps sessions
 - data is persisted to a local JSON file, not a production database
 - no multi-user accounts yet
 - no HTTPS termination inside this Node server itself
@@ -69,7 +78,7 @@ Then open `http://127.0.0.1:4020`.
 
 ## Public Deployment Note
 
-This app now has a solid protected MVP baseline, but public security still requires:
+This app has a solid protected MVP baseline, but public security still requires:
 
 - HTTPS in front of the app
 - secrets set through environment variables
@@ -78,6 +87,6 @@ This app now has a solid protected MVP baseline, but public security still requi
 
 ## Local Data Path
 
-Saved reports, requests, and activity live at:
+Saved reports, autonomous runs, requests, and activity live at:
 
 - `E:\AKELA\codex\forgeai-gym-coach\server\data\db.json`

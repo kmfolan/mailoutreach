@@ -50,12 +50,12 @@
     <main id="home">
       <section class="hero-layout">
         <div class="hero-copy">
-          <p class="eyebrow">Client-specific outreach prep</p>
-          <h1>Build a fluid report, surface pain points, and draft the outreach sequence.</h1>
+          <p class="eyebrow">Autonomous outreach prep</p>
+          <h1>Find prospects, draft fluid reports, and build the outreach sequence automatically.</h1>
           <p class="hero-text">
-            Add the company, website, location, CTA, pain points, source links, and custom report requirements.
-            MailOutreach turns that brief into a live report draft with findings, custom sections, intent signals,
-            and a 3-email sequence you can refine before sending.
+            Run autonomous campaigns by niche and location, or create a one-off report manually.
+            MailOutreach can discover public websites from search results, audit them, build fluid client reports,
+            and draft a 3-email outreach sequence that you can refine before sending.
           </p>
 
           <div class="hero-actions">
@@ -69,7 +69,7 @@
               <strong>0</strong>
             </article>
             <article class="stat-card">
-              <span class="label">Ready to send</span>
+              <span class="label">Active runs</span>
               <strong>0</strong>
             </article>
             <article class="stat-card">
@@ -85,17 +85,17 @@
 
         <aside class="hero-panel">
           <div class="panel-heading">
-            <p class="eyebrow">What this draft does now</p>
-            <h2>From client brief to report and sequence in one workspace.</h2>
+            <p class="eyebrow">Two ways to work</p>
+            <h2>Autonomous discovery plus one-off reports in the same workspace.</h2>
           </div>
           <div class="mini-grid">
             <article>
-              <span class="label">Collects</span>
-              <strong>Company, location, CTA, pain points</strong>
+              <span class="label">Autonomous</span>
+              <strong>Niche + location -> discovered prospects</strong>
             </article>
             <article>
-              <span class="label">Reviews</span>
-              <strong>Website plus any source URLs you provide</strong>
+              <span class="label">Manual</span>
+              <strong>Direct website + source audit</strong>
             </article>
             <article>
               <span class="label">Builds</span>
@@ -109,11 +109,92 @@
         </aside>
       </section>
 
+      <section class="planner-layout" id="autonomous">
+        <article class="panel planner-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Autonomous campaign</p>
+            <h2>Queue a search-driven discovery run.</h2>
+            <p>Define the niche, location, CTA, and report requirements. The system will search public web results, pull in prospects, and draft reports automatically.</p>
+          </div>
+
+          <form id="autonomous-form" class="setup-form">
+            <div class="form-grid">
+              <label>
+                Campaign name
+                <input name="campaignName" type="text" value="Florida agencies outreach" required>
+              </label>
+              <label>
+                Niche
+                <input name="niche" type="text" value="digital marketing agency" required>
+              </label>
+              <label>
+                Location
+                <input name="location" type="text" value="Miami, Florida" required>
+              </label>
+              <label>
+                Audit mode
+                <select name="auditMode" required>
+                  <option>Agency</option>
+                  <option>SEO</option>
+                  <option>Social</option>
+                  <option>Mixed</option>
+                </select>
+              </label>
+              <label class="field-wide">
+                CTA
+                <input name="cta" type="text" value="book more strategy calls from the website" required>
+              </label>
+              <label>
+                Prospect count
+                <input name="targetCount" type="number" min="1" max="10" value="3" required>
+              </label>
+              <label>
+                Platform targets
+                <input name="platformTargets" type="text" value="LinkedIn, Facebook, Google Maps">
+              </label>
+              <label class="field-wide">
+                Pain points
+                <textarea name="painPoints" rows="4" required>weak CTA
+unclear offer
+thin trust proof
+weak local visibility</textarea>
+              </label>
+              <label class="field-wide">
+                Report requirements
+                <textarea name="reportRequirements" rows="4" required>website structure review
+CTA clarity
+proof gaps
+SEO quick wins
+recommended fixes</textarea>
+              </label>
+              <label class="field-wide">
+                Notes
+                <textarea name="notes" rows="4">Prioritize service businesses that look established but still have weak conversion structure.</textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Start autonomous run</button>
+              <p id="autonomous-status" class="status-text">Ready to discover prospects.</p>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel preview-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Run tracker</p>
+            <h2>Queued and completed autonomous runs.</h2>
+          </div>
+
+          <div id="autonomous-runs" class="history-list"></div>
+        </article>
+      </section>
+
       <section class="planner-layout" id="brief">
         <article class="panel planner-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Client brief</p>
-            <h2>Create a new audit and outreach report.</h2>
+            <p class="eyebrow">Manual brief</p>
+            <h2>Create a one-off audit and outreach report.</h2>
             <p>Keep the reporting fluid by defining both the client context and the exact sections you want included.</p>
           </div>
 

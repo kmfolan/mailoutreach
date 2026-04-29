@@ -3,7 +3,16 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { getDashboard, getHealth, getPlanById, submitSetupRequest, updateChecklistItem, updatePlanStatus } from "./store.js";
+import {
+  createAutonomousRun,
+  getAutonomousRunById,
+  getDashboard,
+  getHealth,
+  getPlanById,
+  submitSetupRequest,
+  updateChecklistItem,
+  updatePlanStatus
+} from "./store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,7 +74,7 @@ const loginPage = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outbound Forge Login</title>
+  <title>MailOutreach Login</title>
   <style>
     :root { color-scheme: dark; --bg:#08101a; --panel:rgba(14,20,35,.92); --border:rgba(152,182,255,.14); --text:#f3f7fc; --muted:#9baac4; --accent:#8ee3c4; }
     * { box-sizing:border-box; } body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:Manrope,Arial,sans-serif; color:var(--text); background:radial-gradient(circle at top left, rgba(140,168,255,.16), transparent 28%), radial-gradient(circle at 90% 15%, rgba(142,227,196,.12), transparent 24%), linear-gradient(180deg, #08101a 0%, #050910 100%); }
@@ -79,7 +88,7 @@ const loginPage = `<!DOCTYPE html>
 <body>
   <main class="card">
     <h1>Protected Workspace</h1>
-    <p>Sign in to access the Outbound Forge dashboard and API.</p>
+    <p>Sign in to access the MailOutreach dashboard and API.</p>
     <form id="login-form">
       <label>Username<input name="username" autocomplete="username" required></label>
       <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
@@ -274,6 +283,14 @@ function validateSetupPayload(payload) {
   });
 }
 
+function validateAutonomousPayload(payload) {
+  const requiredFields = ["campaignName", "niche", "location", "cta", "auditMode", "painPoints", "reportRequirements"];
+  return requiredFields.filter(field => {
+    const value = payload[field];
+    return value === undefined || value === null || value === "";
+  });
+}
+
 function getPathSegments(pathname) {
   return pathname.split("/").filter(Boolean);
 }
@@ -401,6 +418,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && pathname.startsWith("/api/autonomous-runs/")) {
+    const segments = getPathSegments(pathname);
+    const runId = segments[2];
+    const run = getAutonomousRunById(runId);
+    if (!run) {
+      sendJson(res, 404, { ok: false, error: "Autonomous run not found" });
+      return;
+    }
+    sendJson(res, 200, { ok: true, run });
+    return;
+  }
+
   if (req.method === "PATCH" && pathname.startsWith("/api/plans/") && pathname.endsWith("/status")) {
     try {
       const segments = getPathSegments(pathname);
@@ -444,6 +473,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && pathname === "/api/autonomous-runs") {
+    try {
+      const payload = await collectJsonBody(req);
+      const missing = validateAutonomousPayload(payload);
+      if (missing.length > 0) {
+        sendJson(res, 400, { ok: false, error: `Missing required fields: ${missing.join(", ")}` });
+        return;
+      }
+      const run = createAutonomousRun(payload);
+      sendJson(res, 202, { ok: true, run });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
   if (req.method === "GET") {
     if (!session) {
       sendHtml(res, 200, loginPage);
@@ -464,7 +509,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Outbound Forge server listening on http://localhost:${port}`);
+  console.log(`MailOutreach server listening on http://localhost:${port}`);
   console.log(`Username: ${authConfig.username}`);
   if (!process.env.AUTH_PASSWORD) {
     console.log(`Generated password: ${generatedPassword}`);
