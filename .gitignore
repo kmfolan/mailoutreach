@@ -1,5 +1,8 @@
 tools/
 server/node_modules/
-server.log
+node_modules/
 server/data/db.json
 .env
+*.log
+.DS_Store
+Thumbs.db
