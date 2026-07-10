@@ -10,7 +10,7 @@ changed = False
 
 # 1. Add CRM nav link if missing
 if 'id="crm-nav-link"' not in src:
-    # Insert before the Admin link, however it's formatted
+    # Try inserting before Admin link first, then fall back to after History
     new_src = re.sub(
         r'(<a\s[^>]*href="#admin"[^>]*>Admin</a>)',
         '<a href="#crm" id="crm-nav-link">CRM</a>\n        \\1',
@@ -18,11 +18,22 @@ if 'id="crm-nav-link"' not in src:
     )
     if new_src != src:
         src = new_src
-        print("  + CRM nav link added")
+        print("  + CRM nav link added (before Admin)")
         changed = True
     else:
-        print("  ! Could not find Admin nav link — check the HTML manually")
-        sys.exit(1)
+        # Fall back: insert after History link
+        new_src = re.sub(
+            r'(<a\s[^>]*href="#history"[^>]*>History</a>)',
+            '\\1\n        <a href="#crm" id="crm-nav-link">CRM</a>',
+            src
+        )
+        if new_src != src:
+            src = new_src
+            print("  + CRM nav link added (after History)")
+            changed = True
+        else:
+            print("  ! Could not find History or Admin nav link")
+            sys.exit(1)
 else:
     print("  . CRM nav link already present")
 
